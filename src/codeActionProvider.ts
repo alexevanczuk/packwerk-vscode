@@ -12,6 +12,11 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
 
     for (const diagnostic of context.diagnostics) {
+      // Only provide actions for packwerk diagnostics
+      if (!this.isPackwerkDiagnostic(diagnostic)) {
+        continue;
+      }
+
       const message = diagnostic.message;
 
       // Check for privacy violation
@@ -32,6 +37,10 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     }
 
     return actions;
+  }
+
+  private isPackwerkDiagnostic(diagnostic: vscode.Diagnostic): boolean {
+    return diagnostic.source === 'packwerk';
   }
 
   private isPrivacyViolation(message: string): boolean {
