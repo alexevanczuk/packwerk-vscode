@@ -135,7 +135,8 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
   ): { sourcePack: string; targetPack: string } | undefined {
     // Try to extract pack names from message
     // Example with backticks: "belongs to `packs/foo`, but `packs/bar/package.yml` does not"
-    const matchBackticks = message.match(/belongs to `([^`]+)`,.*?`([^`\/]+(?:\/[^`\/]+)?)/);
+    // For nested packs: "belongs to `packs/foo`, but `packs/bar/app/domain/calculators/package.yml` does not"
+    const matchBackticks = message.match(/belongs to `([^`]+)`,.*?`([^`]+?)\/package\.yml`/);
     if (matchBackticks) {
       return { sourcePack: matchBackticks[2], targetPack: matchBackticks[1] };
     }
