@@ -1,6 +1,6 @@
 {
   "name": "packwerk-vscode",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "Gusto",
   "displayName": "Packwerk",
   "description": "execute packwerk check for current Ruby code.",
