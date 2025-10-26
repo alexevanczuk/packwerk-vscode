@@ -82,6 +82,7 @@ export class Packwerk {
             message,
             vscode.DiagnosticSeverity.Error
           );
+          diagnostic.source = 'packwerk';
           diagnostics.push(diagnostic);
         });
         entries.push([uri, diagnostics]);
