@@ -12,6 +12,11 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
 
     for (const diagnostic of context.diagnostics) {
+      // Only provide actions for packwerk diagnostics
+      if (diagnostic.source !== 'packwerk') {
+        continue;
+      }
+
       const message = diagnostic.message;
 
       // Check for privacy violation
