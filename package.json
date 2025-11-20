@@ -1,16 +1,16 @@
 {
-  "name": "packwerk-vscode",
-  "version": "0.0.8",
-  "publisher": "Gusto",
-  "displayName": "Packwerk",
-  "description": "execute packwerk check for current Ruby code.",
+  "name": "pks-vscode",
+  "version": "0.0.10",
+  "publisher": "alexevanczuk",
+  "displayName": "Pks",
+  "description": "execute pks check for current Ruby code.",
   "engines": {
     "vscode": "^1.32.0"
   },
   "icon": "images/package.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gusto/packwerk-vscode.git"
+    "url": "https://github.com/alexevanczuk/packwerk-vscode.git"
   },
   "categories": [
     "Programming Languages",
@@ -46,7 +46,7 @@
     "commands": [
       {
         "command": "ruby.packwerk",
-        "title": "Packwerk: Run packwerk check"
+        "title": "Pks: Run pks check"
       }
     ],
     "configuration": {
@@ -55,13 +55,13 @@
       "properties": {
         "ruby.packwerk.executable": {
           "type": "string",
-          "default": "bin/packwerk check",
-          "description": "execution path of packwerk check. `bin/packwerk check` is the default. Other example is `bundle exec packwerk check`"
+          "default": "pks",
+          "description": "execution path of pks check. `pks` is the default. Other examples are `bin/packwerk check` or `bundle exec packwerk check`"
         },
         "ruby.packwerk.onSave": {
           "type": "boolean",
           "default": true,
-          "description": "execute packwerk on save, default true"
+          "description": "execute pks on save, default true"
         },
         "ruby.packwerk.showWarnings": {
           "type": "boolean",

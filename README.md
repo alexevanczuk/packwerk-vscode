@@ -4,7 +4,7 @@ This extension provides an interface to packwerk for vscode.
 
 [packwerk](https://github.com/Shopify/packwerk/) helps modularize large Rails monoliths
 
-[packwerk-vscode in Code Market Place](https://marketplace.visualstudio.com/items?itemName=Gusto.packwerk-vscode)
+[pks-vscode in Code Market Place](https://marketplace.visualstudio.com/items?itemName=alexevanczuk.pks-vscode)
 
 ![exec on save](./images/packwerkvscode.gif)
 
@@ -65,7 +65,7 @@ To build and test the extension locally in VSCode:
      # Package the extension
      vsce package
 
-     # This creates a .vsix file (e.g., packwerk-vscode-0.0.5.vsix)
+     # This creates a .vsix file (e.g., pks-vscode-0.0.5.vsix)
      # Install it via VSCode:
      # - Open VSCode
      # - Go to Extensions (Cmd+Shift+X)
