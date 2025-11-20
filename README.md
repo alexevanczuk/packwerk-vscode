@@ -4,7 +4,16 @@ This extension provides an interface to packwerk for vscode.
 
 [packwerk](https://github.com/Shopify/packwerk/) helps modularize large Rails monoliths
 
-[pks-vscode in Code Market Place](https://marketplace.visualstudio.com/items?itemName=alexevanczuk.pks-vscode)
+## Installation
+
+### VS Code
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=alexevanczuk.pks-vscode)
+
+### Cursor
+Install from the [Open VSX Registry](https://open-vsx.org/extension/alexevanczuk/pks-vscode):
+```bash
+cursor --install-extension alexevanczuk.pks-vscode
+```
 
 ![exec on save](./images/packwerkvscode.gif)
 
@@ -80,6 +89,35 @@ To build and test the extension locally in VSCode:
      - "Make constant public with # pack_public: true" for privacy violations
      - "Add dependency from X to Y" for dependency violations
      - "Run pks update" to update package_todo.yml files
+
+## Publishing
+
+This extension is published to both the VS Code Marketplace and Open VSX Registry (for Cursor compatibility).
+
+### Publishing to VS Code Marketplace
+
+```bash
+# Install vsce if you don't have it
+npm install -g vsce
+
+# Publish (requires VS Code Marketplace token)
+vsce publish
+```
+
+### Publishing to Open VSX Registry
+
+```bash
+# Install ovsx if you don't have it
+npm install -g ovsx
+
+# Create namespace (first time only, after signing Publisher Agreement)
+ovsx create-namespace alexevanczuk -p YOUR_OPENVSX_TOKEN
+
+# Publish to Open VSX
+ovsx publish -p YOUR_OPENVSX_TOKEN
+```
+
+**Note:** You must sign the Eclipse Foundation Publisher Agreement at https://open-vsx.org/user-settings/extensions before publishing to Open VSX.
 
 # License
 
