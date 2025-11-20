@@ -4,7 +4,7 @@ This extension provides an interface to packwerk for vscode.
 
 [packwerk](https://github.com/Shopify/packwerk/) helps modularize large Rails monoliths
 
-[packwerk-vscode in Code Market Place](https://marketplace.visualstudio.com/items?itemName=Gusto.packwerk-vscode)
+[packwerk-vscode in Code Market Place](https://marketplace.visualstudio.com/items?itemName=alexevanczuk.packwerk-vscode)
 
 ![exec on save](./images/packwerkvscode.gif)
 
