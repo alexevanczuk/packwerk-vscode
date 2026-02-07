@@ -127,9 +127,8 @@ export class Packwerk {
 
       this.diag.delete(uri);
 
-      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
       packwerk.files.forEach((file: PackwerkFile) => {
-        let diagnostics = [];
+        let diagnostics: vscode.Diagnostic[] = [];
         file.violations.forEach((offence: PackwerkViolation) => {
           const loc = offence.location;
           const range = new vscode.Range(
@@ -153,10 +152,8 @@ export class Packwerk {
           diagnostic.source = 'packwerk';
           diagnostics.push(diagnostic);
         });
-        entries.push([uri, diagnostics]);
+        this.diag.set(uri, diagnostics);
       });
-
-      this.diag.set(entries);
     };
 
     let task = new Task(uri, (token) => {
