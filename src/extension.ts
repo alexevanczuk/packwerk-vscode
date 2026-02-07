@@ -181,9 +181,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // Run pks check for all files on activation
   packwerk.executeAll();
 
-  ws.onDidSaveTextDocument((_e: vscode.TextDocument) => {
+  ws.onDidSaveTextDocument((e: vscode.TextDocument) => {
     if (packwerk.isOnSave) {
-      packwerk.executeAll();
+      packwerk.execute(e);
     }
   });
 }
