@@ -82,7 +82,7 @@ export class Packwerk {
     };
 
     let task = new Task(allUri, (token) => {
-      let command = `${this.config.executable}`;
+      let command = `${this.config.executable} check`;
       console.debug(`[DEBUG] Running command ${command}`)
       let process = cp.exec(command, { cwd }, (error, stdout, stderr) => {
         if (token.isCanceled) {
