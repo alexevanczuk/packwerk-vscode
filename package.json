@@ -47,6 +47,10 @@
       {
         "command": "ruby.packwerk",
         "title": "Pks: Run pks check"
+      },
+      {
+        "command": "ruby.packwerk.all",
+        "title": "Pks: Run pks check (all files)"
       }
     ],
     "configuration": {
