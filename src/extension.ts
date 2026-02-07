@@ -20,6 +20,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(disposable);
 
+  // Register command to run pks check on all files
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ruby.packwerk.all', () => {
+      packwerk.executeAll();
+    })
+  );
+
   // Register code action provider
   const codeActionProvider = new PackwerkCodeActionProvider();
   context.subscriptions.push(
@@ -108,9 +115,7 @@ export function activate(context: vscode.ExtensionContext): void {
             vscode.window.showInformationMessage(`Added # pack_public: true to ${constantName}`);
 
             // Re-run packwerk check to update diagnostics
-            if (vscode.window.activeTextEditor) {
-              packwerk.execute(vscode.window.activeTextEditor.document);
-            }
+            packwerk.executeAll();
           } catch (err) {
             vscode.window.showErrorMessage(`Failed to open file ${definitionFile}: ${err}`);
           }
@@ -138,9 +143,7 @@ export function activate(context: vscode.ExtensionContext): void {
           }
           vscode.window.showInformationMessage(`Added dependency from ${sourcePack} to ${targetPack}`);
           // Re-run packwerk check to update diagnostics
-          if (vscode.window.activeTextEditor) {
-            packwerk.execute(vscode.window.activeTextEditor.document);
-          }
+          packwerk.executeAll();
         });
       }
     )
@@ -165,9 +168,7 @@ export function activate(context: vscode.ExtensionContext): void {
           }
           vscode.window.showInformationMessage('Successfully ran pks update');
           // Re-run packwerk check to update diagnostics
-          if (vscode.window.activeTextEditor) {
-            packwerk.execute(vscode.window.activeTextEditor.document);
-          }
+          packwerk.executeAll();
         });
       }
     )
@@ -177,21 +178,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   ws.onDidChangeConfiguration(onDidChangeConfiguration(packwerk));
 
-  ws.textDocuments.forEach((e: vscode.TextDocument) => {
-    packwerk.execute(e);
-  });
-
-  ws.onDidOpenTextDocument((e: vscode.TextDocument) => {
-    packwerk.execute(e);
-  });
+  // Run pks check for all files on activation
+  packwerk.executeAll();
 
   ws.onDidSaveTextDocument((e: vscode.TextDocument) => {
     if (packwerk.isOnSave) {
       packwerk.execute(e);
     }
-  });
-
-  ws.onDidCloseTextDocument((e: vscode.TextDocument) => {
-    packwerk.clear(e);
   });
 }

@@ -32,6 +32,74 @@ export class Packwerk {
     this.config = getConfig();
   }
 
+  public executeAll(onComplete?: () => void): void {
+    let currentPath = vscode.workspace.rootPath;
+    if (!currentPath) {
+      return;
+    }
+
+    const cwd = currentPath;
+    // Sentinel URI used for task queue cancellation of whole-workspace runs
+    const allUri = vscode.Uri.parse('packwerk:all');
+
+    let onDidExec = (error: Error, stdout: string, stderr: string) => {
+      this.reportError(error, stderr);
+      let packwerk = this.parse(stdout);
+      if (packwerk === undefined || packwerk === null) {
+        return;
+      }
+
+      this.diag.clear();
+
+      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
+      packwerk.files.forEach((file: PackwerkFile) => {
+        let diagnostics: vscode.Diagnostic[] = [];
+        file.violations.forEach((offence: PackwerkViolation) => {
+          const loc = offence.location;
+          const range = new vscode.Range(
+            loc.line - 1,
+            loc.column,
+            loc.line - 1,
+            loc.length + loc.column
+          );
+
+          let decolorizedMessage = offence.message.replace(
+            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+
+          const diagnostic = new vscode.Diagnostic(
+            range,
+            decolorizedMessage,
+            vscode.DiagnosticSeverity.Error
+          );
+          diagnostic.source = 'packwerk';
+          diagnostics.push(diagnostic);
+        });
+        const fileUri = vscode.Uri.file(cwd + '/' + file.path);
+        entries.push([fileUri, diagnostics]);
+      });
+
+      this.diag.set(entries);
+    };
+
+    let task = new Task(allUri, (token) => {
+      let command = `${this.config.executable}`;
+      console.debug(`[DEBUG] Running command ${command}`)
+      let process = cp.exec(command, { cwd }, (error, stdout, stderr) => {
+        if (token.isCanceled) {
+          return;
+        }
+        onDidExec(error, stdout, stderr);
+        token.finished();
+        if (onComplete) {
+          onComplete();
+        }
+      });
+      return () => process.kill();
+    });
+
+    this.taskQueue.enqueue(task);
+  }
+
   public execute(document: vscode.TextDocument, onComplete?: () => void): void {
     if (
       (document.languageId !== 'gemfile' && document.languageId !== 'ruby') ||
@@ -59,9 +127,8 @@ export class Packwerk {
 
       this.diag.delete(uri);
 
-      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
       packwerk.files.forEach((file: PackwerkFile) => {
-        let diagnostics = [];
+        let diagnostics: vscode.Diagnostic[] = [];
         file.violations.forEach((offence: PackwerkViolation) => {
           const loc = offence.location;
           const range = new vscode.Range(
@@ -85,10 +152,8 @@ export class Packwerk {
           diagnostic.source = 'packwerk';
           diagnostics.push(diagnostic);
         });
-        entries.push([uri, diagnostics]);
+        this.diag.set(uri, diagnostics);
       });
-
-      this.diag.set(entries);
     };
 
     let task = new Task(uri, (token) => {
