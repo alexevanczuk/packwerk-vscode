@@ -39,6 +39,11 @@ export class Packwerk {
     this.output.appendLine(`[${timestamp}] ${message}`);
   }
 
+  // Check if a violation has valid line/column info for display
+  private hasValidLocation(violation: PackwerkViolation): boolean {
+    return typeof violation.line === 'number' && typeof violation.column === 'number';
+  }
+
   // Strip the "file:line:column\n" prefix from violation messages since it's redundant
   private cleanMessage(message: string): string {
     const newlineIndex = message.indexOf('\n');
@@ -106,14 +111,14 @@ export class Packwerk {
         return;
       }
 
-      // Combine all violation types
+      // Combine all violation types and filter to those with valid locations
       const allViolations = [
         ...(packwerk.violations || []),
         ...(packwerk.stale_violations || []),
         ...(packwerk.strict_mode_violations || []),
-      ];
+      ].filter(v => this.hasValidLocation(v));
 
-      this.log(`executeAll: Parsed ${allViolations.length} total violations (${packwerk.violations?.length || 0} new, ${packwerk.stale_violations?.length || 0} stale, ${packwerk.strict_mode_violations?.length || 0} strict)`);
+      this.log(`executeAll: Parsed ${allViolations.length} displayable violations (${packwerk.violations?.length || 0} new, ${packwerk.stale_violations?.length || 0} stale, ${packwerk.strict_mode_violations?.length || 0} strict)`);
 
       this.diag.clear();
 
@@ -143,14 +148,19 @@ export class Packwerk {
       let command = `${this.config.executable} --json`;
       this.log(`executeAll: Running command: ${command}`);
       let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
-        if (token.isCanceled) {
-          this.log('executeAll: Task was canceled');
-          return;
-        }
-        onDidExec(error, stdout, stderr);
-        token.finished();
-        if (onComplete) {
-          onComplete();
+        try {
+          if (token.isCanceled) {
+            this.log('executeAll: Task was canceled');
+            return;
+          }
+          onDidExec(error, stdout, stderr);
+          if (onComplete) {
+            onComplete();
+          }
+        } catch (e) {
+          this.log(`executeAll: Exception in callback: ${e}`);
+        } finally {
+          token.finished();
         }
       });
       return () => process.kill();
@@ -183,12 +193,12 @@ export class Packwerk {
         return;
       }
 
-      // Combine all violation types
+      // Combine all violation types and filter to those with valid locations
       const allViolations = [
         ...(packwerk.violations || []),
         ...(packwerk.stale_violations || []),
         ...(packwerk.strict_mode_violations || []),
-      ];
+      ].filter(v => this.hasValidLocation(v));
 
       this.diag.delete(uri);
 
@@ -205,13 +215,18 @@ export class Packwerk {
         document.getText(),
         { cwd: currentPath },
         (error, stdout, stderr) => {
-          if (token.isCanceled) {
-            return;
-          }
-          onDidExec(error, stdout, stderr);
-          token.finished();
-          if (onComplete) {
-            onComplete();
+          try {
+            if (token.isCanceled) {
+              return;
+            }
+            onDidExec(error, stdout, stderr);
+            if (onComplete) {
+              onComplete();
+            }
+          } catch (e) {
+            this.log(`execute: Exception in callback: ${e}`);
+          } finally {
+            token.finished();
           }
         }
       );
