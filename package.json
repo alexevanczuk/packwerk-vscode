@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
@@ -18,6 +18,8 @@
   ],
   "activationEvents": [
     "onLanguage:ruby",
+    "onLanguage:yaml",
+    "workspaceContains:**/package.yml",
     "onCommand:ruby.pks"
   ],
   "main": "./out/src/extension",

@@ -79,6 +79,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Register document link provider for package.yml dependencies
   const packageYmlSelector: vscode.DocumentSelector = {
+    scheme: 'file',
     pattern: '**/package.yml'
   };
   context.subscriptions.push(
