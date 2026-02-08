@@ -37,6 +37,15 @@ export class Packwerk {
     this.output.appendLine(`[${timestamp}] ${message}`);
   }
 
+  // Strip the "file:line:column\n" prefix from violation messages since it's redundant
+  private cleanMessage(message: string): string {
+    const newlineIndex = message.indexOf('\n');
+    if (newlineIndex !== -1) {
+      return message.substring(newlineIndex + 1);
+    }
+    return message;
+  }
+
   public executeAll(onComplete?: () => void): void {
     let currentPath = vscode.workspace.rootPath;
     if (!currentPath) {
@@ -89,7 +98,7 @@ export class Packwerk {
 
         const diagnostic = new vscode.Diagnostic(
           range,
-          offence.message,
+          this.cleanMessage(offence.message),
           vscode.DiagnosticSeverity.Error
         );
         diagnostic.source = 'packwerk';
@@ -175,7 +184,7 @@ export class Packwerk {
 
         const diagnostic = new vscode.Diagnostic(
           range,
-          offence.message,
+          this.cleanMessage(offence.message),
           vscode.DiagnosticSeverity.Error
         );
         diagnostic.source = 'packwerk';
