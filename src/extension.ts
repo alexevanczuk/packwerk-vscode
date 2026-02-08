@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Packwerk } from './packwerk';
 import { onDidChangeConfiguration } from './configuration';
 import { PackwerkCodeActionProvider } from './codeActionProvider';
+import { PackageYmlLinkProvider } from './packageYmlLinkProvider';
 import { exec } from 'child_process';
 import { findSigilInsertionLine } from './fileHeaderUtils';
 
@@ -73,6 +74,17 @@ export function activate(context: vscode.ExtensionContext): void {
       {
         providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
       }
+    )
+  );
+
+  // Register document link provider for package.yml dependencies
+  const packageYmlSelector: vscode.DocumentSelector = {
+    pattern: '**/package.yml'
+  };
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(
+      packageYmlSelector,
+      new PackageYmlLinkProvider()
     )
   );
 
