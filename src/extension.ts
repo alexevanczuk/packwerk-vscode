@@ -19,8 +19,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const packwerk = new Packwerk(diag, outputChannel);
   const disposable = vscode.commands.registerCommand('ruby.pks', () => {
-    const document = vscode.window.activeTextEditor.document;
-    packwerk.execute(document);
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showErrorMessage('No active editor');
+      return;
+    }
+    outputChannel.show(true);
+    packwerk.execute(editor.document);
   });
 
   context.subscriptions.push(disposable);
@@ -28,6 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command to run pks check on all files
   context.subscriptions.push(
     vscode.commands.registerCommand('ruby.pks.all', () => {
+      outputChannel.show(true);
       packwerk.executeAll();
     })
   );
