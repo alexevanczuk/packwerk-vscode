@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(outputChannel);
 
   const packwerk = new Packwerk(diag, outputChannel);
-  const disposable = vscode.commands.registerCommand('ruby.packwerk', () => {
+  const disposable = vscode.commands.registerCommand('ruby.pks', () => {
     const document = vscode.window.activeTextEditor.document;
     packwerk.execute(document);
   });
@@ -25,14 +25,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Register command to run pks check on all files
   context.subscriptions.push(
-    vscode.commands.registerCommand('ruby.packwerk.all', () => {
+    vscode.commands.registerCommand('ruby.pks.all', () => {
       packwerk.executeAll();
     })
   );
 
   // Register command to go to package.yml for current file
   context.subscriptions.push(
-    vscode.commands.registerCommand('ruby.packwerk.goToPackageYml', () => {
+    vscode.commands.registerCommand('ruby.pks.goToPackageYml', () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showErrorMessage('No active editor');
@@ -79,7 +79,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command to make constant public
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.makePublic',
+      'ruby.pks.makePublic',
       async (constantName: string | undefined) => {
         if (!constantName) {
           vscode.window.showErrorMessage('Could not extract constant name from violation');
@@ -164,7 +164,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command to add dependency
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.addDependency',
+      'ruby.pks.addDependency',
       async (sourcePack: string, targetPack: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
@@ -189,7 +189,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command: todo: this file -> CONSTANT
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.todoFile',
+      'ruby.pks.todoFile',
       async (file: string, constantName: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
@@ -213,7 +213,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command: todo: pack -> CONSTANT
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.todoPackConstant',
+      'ruby.pks.todoPackConstant',
       async (file: string, constantName: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
@@ -237,7 +237,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command: todo: pack -> pack
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.todoPackToPack',
+      'ruby.pks.todoPackToPack',
       async (file: string, definingPack: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
@@ -261,7 +261,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command: todo: all
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.todoAll',
+      'ruby.pks.todoAll',
       async () => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
