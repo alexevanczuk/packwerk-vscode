@@ -1,19 +1,16 @@
-interface PackwerkLocation {
-  line: number;
-  column: number;
-  length: number;
-}
-
 export interface PackwerkViolation {
   message: string;
-  location: PackwerkLocation;
-}
-
-export interface PackwerkFile {
-  path: string;
-  violations: Array<PackwerkViolation>;
+  file: string;
+  line: number;
+  column: number;
+  violation_type: string;
+  strict: boolean;
+  constant_name: string;
+  referencing_pack_name: string;
+  defining_pack_name: string;
 }
 
 export interface PackwerkOutput {
-  files: Array<PackwerkFile>;
+  status: string;
+  violations: Array<PackwerkViolation>;
 }
