@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
@@ -55,22 +55,17 @@
     ],
     "configuration": {
       "type": "object",
-      "title": "Packwerk",
+      "title": "Pks",
       "properties": {
-        "ruby.packwerk.executable": {
+        "ruby.pks.executable": {
           "type": "string",
-          "default": "pks",
-          "description": "execution path of pks check. `pks` is the default. Other examples are `bin/packwerk check` or `bundle exec packwerk check`"
+          "default": "pks check",
+          "description": "Base command for pks check. --json flag will be appended automatically."
         },
-        "ruby.packwerk.onSave": {
+        "ruby.pks.onSave": {
           "type": "boolean",
           "default": true,
-          "description": "execute pks on save, default true"
-        },
-        "ruby.packwerk.showWarnings": {
-          "type": "boolean",
-          "default": false,
-          "description": "show warnings, default false"
+          "description": "Run pks check on save"
         }
       }
     }

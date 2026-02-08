@@ -13,4 +13,6 @@ export interface PackwerkViolation {
 export interface PackwerkOutput {
   status: string;
   violations: Array<PackwerkViolation>;
+  stale_violations?: Array<PackwerkViolation>;
+  strict_mode_violations?: Array<PackwerkViolation>;
 }

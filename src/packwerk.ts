@@ -66,13 +66,20 @@ export class Packwerk {
         return;
       }
 
-      this.log(`executeAll: Parsed ${packwerk.violations?.length || 0} violations`);
+      // Combine all violation types
+      const allViolations = [
+        ...(packwerk.violations || []),
+        ...(packwerk.stale_violations || []),
+        ...(packwerk.strict_mode_violations || []),
+      ];
+
+      this.log(`executeAll: Parsed ${allViolations.length} total violations (${packwerk.violations?.length || 0} new, ${packwerk.stale_violations?.length || 0} stale, ${packwerk.strict_mode_violations?.length || 0} strict)`);
 
       this.diag.clear();
 
       // Group violations by file
       const byFile = new Map<string, vscode.Diagnostic[]>();
-      packwerk.violations.forEach((offence: PackwerkViolation) => {
+      allViolations.forEach((offence: PackwerkViolation) => {
         const range = new vscode.Range(
           offence.line - 1,
           offence.column,
@@ -105,7 +112,7 @@ export class Packwerk {
     };
 
     let task = new Task(allUri, (token) => {
-      let command = `${this.config.executable} check --json`;
+      let command = `${this.config.executable} --json`;
       this.log(`executeAll: Running command: ${command}`);
       let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (token.isCanceled) {
@@ -140,19 +147,25 @@ export class Packwerk {
     let relativeFileName = fileName.replace(currentPath + '/', '')
 
     let onDidExec = (error: Error, stdout: string, stderr: string) => {
-      console.debug(`[DEBUG] Finished running command, in onDidExec`)
-      console.debug(`[DEBUG] Error, stderr`, error, stderr)
+      this.log(`execute: Command finished for ${relativeFileName}`);
       this.reportError(error, stderr);
       let packwerk = this.parse(stdout);
       if (packwerk === undefined || packwerk === null) {
-        console.debug(`[DEBUG] packwerk is undefined or null, returning from onDidExec`)
+        this.log('execute: Parse returned null/undefined, aborting');
         return;
       }
+
+      // Combine all violation types
+      const allViolations = [
+        ...(packwerk.violations || []),
+        ...(packwerk.stale_violations || []),
+        ...(packwerk.strict_mode_violations || []),
+      ];
 
       this.diag.delete(uri);
 
       let diagnostics: vscode.Diagnostic[] = [];
-      packwerk.violations.forEach((offence: PackwerkViolation) => {
+      allViolations.forEach((offence: PackwerkViolation) => {
         const range = new vscode.Range(
           offence.line - 1,
           offence.column,
@@ -160,7 +173,6 @@ export class Packwerk {
           offence.constant_name.length + offence.column
         );
 
-        console.debug(`[DEBUG] Adding vscode.Diagnostic:`, { range, message: offence.message })
         const diagnostic = new vscode.Diagnostic(
           range,
           offence.message,
@@ -169,6 +181,7 @@ export class Packwerk {
         diagnostic.source = 'packwerk';
         diagnostics.push(diagnostic);
       });
+      this.log(`execute: Setting ${diagnostics.length} diagnostics for ${relativeFileName}`);
       this.diag.set(uri, diagnostics);
     };
 
@@ -212,11 +225,11 @@ export class Packwerk {
     options: cp.ExecOptions,
     cb: (err: Error, stdout: string, stderr: string) => void
   ): cp.ChildProcess {
-    let command = `${this.config.executable} check --json ${fileName}`
-    console.debug(`[DEBUG] Running command ${command}`)
+    let command = `${this.config.executable} --json ${fileName}`;
+    this.log(`executePackwerkCheck: Running command: ${command}`);
 
     let child = cp.exec(command, { ...options, maxBuffer: 50 * 1024 * 1024 }, cb);
-    child.stdin.write(fileContents); // why do we need this?
+    child.stdin.write(fileContents);
     child.stdin.end();
     return child;
   }
@@ -257,18 +270,12 @@ export class Packwerk {
   }
 
   private reportError(error: Error, stderr: string): boolean {
-    let errorOutput = stderr.toString();
     if (error && (<any>error).code === 'ENOENT') {
       vscode.window.showWarningMessage(
         `${this.config.executable} is not executable`
       );
       return true;
-    } else if (error && (<any>error).code === 127 && this.config.showWarnings) {
-      console.debug('[DEBUG] Showing error with code 127', stderr)
-      vscode.window.showWarningMessage(stderr);
-      return true;
-    } else if (errorOutput.length > 0 && this.config.showWarnings) {
-      console.debug('[DEBUG] Showing error with errorOutput.length > 0', stderr)
+    } else if (error && (<any>error).code === 127) {
       vscode.window.showWarningMessage(stderr);
       return true;
     }

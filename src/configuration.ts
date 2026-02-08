@@ -4,23 +4,19 @@ import { Packwerk } from './packwerk';
 export interface PackwerkConfig {
   executable: string;
   onSave: boolean;
-  showWarnings: boolean;
 }
 
 /**
- * Read the workspace configuration for 'ruby.packwerk' and return a PackwerkConfig.
+ * Read the workspace configuration for 'ruby.pks' and return a PackwerkConfig.
  * @return {PackwerkConfig} config object
  */
 export const getConfig: () => PackwerkConfig = () => {
-  const conf = vs.workspace.getConfiguration('ruby.packwerk');
-  let executable = conf.get('executable', 'bin/packwerk check');
-
-  console.debug(`[DEBUG] Parsing config, found executable '${executable}'`)
+  const conf = vs.workspace.getConfiguration('ruby.pks');
+  let executable = conf.get('executable', 'pks check');
 
   return {
     executable,
     onSave: conf.get('onSave', true),
-    showWarnings: conf.get('showWarnings', false)
   };
 };
 
