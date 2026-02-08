@@ -83,7 +83,7 @@ export class Packwerk {
     let task = new Task(allUri, (token) => {
       let command = `${this.config.executable} check --json`;
       console.debug(`[DEBUG] Running command ${command}`)
-      let process = cp.exec(command, { cwd }, (error, stdout, stderr) => {
+      let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (token.isCanceled) {
           return;
         }
@@ -190,7 +190,7 @@ export class Packwerk {
     let command = `${this.config.executable} check --json ${fileName}`
     console.debug(`[DEBUG] Running command ${command}`)
 
-    let child = cp.exec(command, options, cb);
+    let child = cp.exec(command, { ...options, maxBuffer: 50 * 1024 * 1024 }, cb);
     child.stdin.write(fileContents); // why do we need this?
     child.stdin.end();
     return child;
