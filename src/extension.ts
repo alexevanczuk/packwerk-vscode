@@ -30,6 +30,40 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // Register command to go to package.yml for current file
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ruby.packwerk.goToPackageYml', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage('No active editor');
+        return;
+      }
+
+      const cwd = vscode.workspace.rootPath;
+      if (!cwd) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+
+      const filePath = editor.document.fileName;
+      const relativePath = filePath.replace(cwd + '/', '');
+      const command = `pks for-file ${relativePath}`;
+
+      exec(command, { cwd }, (error: Error | null, stdout: string, stderr: string) => {
+        if (error) {
+          vscode.window.showErrorMessage(`Could not find package.yml: ${stderr || error.message}`);
+          return;
+        }
+
+        const packageYmlPath = stdout.trim();
+        if (packageYmlPath) {
+          const uri = vscode.Uri.file(packageYmlPath);
+          vscode.window.showTextDocument(uri);
+        }
+      });
+    })
+  );
+
   // Register code action provider
   const codeActionProvider = new PackwerkCodeActionProvider();
   context.subscriptions.push(

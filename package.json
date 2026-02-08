@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
@@ -51,6 +51,10 @@
       {
         "command": "ruby.packwerk.all",
         "title": "Pks: Run pks check (all files)"
+      },
+      {
+        "command": "ruby.packwerk.goToPackageYml",
+        "title": "Pks: Go to package.yml"
       }
     ],
     "configuration": {
