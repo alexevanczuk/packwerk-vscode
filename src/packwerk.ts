@@ -21,7 +21,7 @@ function getCurrentPath(fileName: string): string {
 export class Packwerk {
   public config: PackwerkConfig;
   private diag: vscode.DiagnosticCollection;
-  private taskQueue: TaskQueue = new TaskQueue();
+  private taskQueue: TaskQueue;
   private output: vscode.OutputChannel;
 
   constructor(
@@ -31,6 +31,7 @@ export class Packwerk {
     this.diag = diagnostics;
     this.output = outputChannel;
     this.config = getConfig();
+    this.taskQueue = new TaskQueue((msg) => this.log(msg));
   }
 
   private log(message: string): void {

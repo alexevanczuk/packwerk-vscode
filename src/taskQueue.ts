@@ -31,7 +31,7 @@ export class Task {
 
   public run(): Promise<void> {
     if (this.isCanceled) {
-      return;
+      return Promise.resolve();
     }
     let task = this;
     return new Promise<void>((resolve, reject) => {
@@ -76,6 +76,11 @@ export class Task {
 export class TaskQueue {
   private tasks: Task[] = [];
   private busy: boolean = false;
+  private log: (message: string) => void;
+
+  constructor(log?: (message: string) => void) {
+    this.log = log || (() => {});
+  }
 
   public get length(): number {
     return this.tasks.length;
@@ -86,6 +91,7 @@ export class TaskQueue {
       throw new Error('Task is already enqueued. (uri: ' + task.uri + ')');
     }
 
+    this.log(`TaskQueue: Enqueueing task for ${task.uri}, busy=${this.busy}, queueLength=${this.tasks.length}`);
     this.cancel(task.uri);
     task.isEnqueued = true;
     this.tasks.push(task);
@@ -96,7 +102,7 @@ export class TaskQueue {
     let uriString = uri.toString(true);
     this.tasks.forEach((task) => {
       if (task.uri.toString(true) === uriString) {
-        console.debug(`[DEBUG] Canceling existing task for ${task.uri}`)
+        this.log(`TaskQueue: Canceling existing task for ${task.uri}`);
         task.cancel();
       }
     });
@@ -104,18 +110,24 @@ export class TaskQueue {
 
   private async kick(): Promise<void> {
     if (this.busy) {
+      this.log(`TaskQueue: kick() called but busy, skipping`);
       return;
     }
     this.busy = true;
+    this.log(`TaskQueue: Starting to process queue`);
     while (true) {
       let task: Task | undefined = this.tasks[0];
       if (!task) {
         this.busy = false;
+        this.log(`TaskQueue: Queue empty, done`);
         return;
       }
       try {
+        this.log(`TaskQueue: Running task for ${task.uri}`);
         await task.run();
+        this.log(`TaskQueue: Task completed for ${task.uri}`);
       } catch (e) {
+        this.log(`TaskQueue: Task error for ${task.uri}: ${e.message}`);
         console.error('Error while running packwerk: ', e.message, e.stack);
       }
       this.tasks.shift();
