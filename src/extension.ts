@@ -152,25 +152,52 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
-  // Register command to run pks update
+  // Register command for scoped pks update (single file)
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.runPksUpdate',
-      async () => {
+      'ruby.packwerk.scopedUpdate',
+      async (file: string, constantName: string, violationType: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
           vscode.window.showErrorMessage('No workspace folder open');
           return;
         }
 
-        const command = 'pks update';
+        const command = `pks update ${file} --constant ${constantName} --violation-type ${violationType}`;
         exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
           if (error) {
-            vscode.window.showErrorMessage(`Failed to run pks update: ${stderr || error.message}`);
+            vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
             return;
           }
-          vscode.window.showInformationMessage('Successfully ran pks update');
-          // Re-run packwerk check to update diagnostics
+          vscode.window.showInformationMessage(
+            `Allowed ${violationType} on ${constantName} for ${file}`
+          );
+          packwerk.executeAll();
+        });
+      }
+    )
+  );
+
+  // Register command for pack-wide pks update
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'ruby.packwerk.packUpdate',
+      async (file: string, constantName: string, violationType: string) => {
+        const cwd = vscode.workspace.rootPath;
+        if (!cwd) {
+          vscode.window.showErrorMessage('No workspace folder open');
+          return;
+        }
+
+        const command = `pks update ${file} --pack --constant ${constantName} --violation-type ${violationType}`;
+        exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
+          if (error) {
+            vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
+            return;
+          }
+          vscode.window.showInformationMessage(
+            `Allowed ${violationType} on ${constantName} for the pack`
+          );
           packwerk.executeAll();
         });
       }

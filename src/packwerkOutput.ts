@@ -16,3 +16,12 @@ export interface PackwerkOutput {
   stale_violations?: Array<PackwerkViolation>;
   strict_mode_violations?: Array<PackwerkViolation>;
 }
+
+// Metadata stored on diagnostics for code actions
+export interface ViolationMetadata {
+  file: string;
+  violation_type: string;
+  constant_name: string;
+  referencing_pack_name: string;
+  defining_pack_name: string;
+}

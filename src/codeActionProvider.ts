@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
-import * as path from 'path';
+import { ViolationMetadata } from './packwerkOutput';
 
 export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
   public provideCodeActions(
@@ -17,23 +16,31 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
         continue;
       }
 
-      const message = diagnostic.message;
+      const metadata = this.getViolationMetadata(diagnostic);
 
-      // Check for privacy violation
-      if (this.isPrivacyViolation(message)) {
-        actions.push(this.createMakePublicAction(document, diagnostic));
-      }
-
-      // Check for dependency violation
-      if (this.isDependencyViolation(message)) {
-        const addDepAction = this.createAddDependencyAction(document, diagnostic, message);
-        if (addDepAction) {
-          actions.push(addDepAction);
+      // Check for privacy violation - offer to make constant public
+      if (metadata?.violation_type === 'privacy' || this.isPrivacyViolation(diagnostic.message)) {
+        const constantName = metadata?.constant_name || this.extractConstantName(diagnostic.message);
+        if (constantName) {
+          actions.push(this.createMakePublicAction(diagnostic, constantName));
         }
       }
 
-      // Add "Run pks update" action for any packwerk violation
-      actions.push(this.createRunPksUpdateAction(document, diagnostic));
+      // Check for dependency violation - offer to add dependency
+      if (metadata?.violation_type === 'dependency' || this.isDependencyViolation(diagnostic.message)) {
+        const packInfo = metadata
+          ? { sourcePack: metadata.referencing_pack_name, targetPack: metadata.defining_pack_name }
+          : this.extractPackNames(document, diagnostic.message);
+        if (packInfo) {
+          actions.push(this.createAddDependencyAction(diagnostic, packInfo.sourcePack, packInfo.targetPack));
+        }
+      }
+
+      // Add scoped update actions if we have metadata
+      if (metadata) {
+        actions.push(this.createScopedUpdateAction(diagnostic, metadata));
+        actions.push(this.createPackUpdateAction(diagnostic, metadata));
+      }
     }
 
     return actions;
@@ -41,6 +48,10 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
   private isPackwerkDiagnostic(diagnostic: vscode.Diagnostic): boolean {
     return diagnostic.source === 'packwerk';
+  }
+
+  private getViolationMetadata(diagnostic: vscode.Diagnostic): ViolationMetadata | undefined {
+    return (diagnostic as any)._packwerk as ViolationMetadata | undefined;
   }
 
   private isPrivacyViolation(message: string): boolean {
@@ -56,16 +67,13 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
   }
 
   private createMakePublicAction(
-    document: vscode.TextDocument,
-    diagnostic: vscode.Diagnostic
+    diagnostic: vscode.Diagnostic,
+    constantName: string
   ): vscode.CodeAction {
     const action = new vscode.CodeAction(
       'Make constant public with # pack_public: true',
       vscode.CodeActionKind.QuickFix
     );
-
-    // Extract constant name from the diagnostic message
-    const constantName = this.extractConstantName(diagnostic.message);
 
     action.command = {
       title: 'Make constant public',
@@ -97,22 +105,10 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
   }
 
   private createAddDependencyAction(
-    document: vscode.TextDocument,
     diagnostic: vscode.Diagnostic,
-    message: string
-  ): vscode.CodeAction | undefined {
-    // Try to parse pack names from the message
-    // Common formats:
-    // "Dependency violation: ::SomeConstant belongs to 'packs/target', but 'packs/source' does not specify a dependency"
-    // We need to extract source and target pack names
-
-    const packInfo = this.extractPackNames(document, message);
-    if (!packInfo) {
-      return undefined;
-    }
-
-    const { sourcePack, targetPack } = packInfo;
-
+    sourcePack: string,
+    targetPack: string
+  ): vscode.CodeAction {
     const action = new vscode.CodeAction(
       `Add dependency from ${sourcePack} to ${targetPack}`,
       vscode.CodeActionKind.QuickFix
@@ -135,7 +131,6 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
   ): { sourcePack: string; targetPack: string } | undefined {
     // Try to extract pack names from message
     // Example with backticks: "belongs to `packs/foo`, but `packs/bar/package.yml` does not"
-    // For nested packs: "belongs to `packs/foo`, but `packs/bar/app/domain/calculators/package.yml` does not"
     const matchBackticks = message.match(/belongs to `([^`]+)`,.*?`([^`]+?)\/package\.yml`/);
     if (matchBackticks) {
       return { sourcePack: matchBackticks[2], targetPack: matchBackticks[1] };
@@ -180,23 +175,52 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     return match ? match[0] : undefined;
   }
 
-  private createRunPksUpdateAction(
-    document: vscode.TextDocument,
-    diagnostic: vscode.Diagnostic
+  private createScopedUpdateAction(
+    diagnostic: vscode.Diagnostic,
+    metadata: ViolationMetadata
   ): vscode.CodeAction {
+    const shortConstant = this.shortenConstantName(metadata.constant_name);
     const action = new vscode.CodeAction(
-      'Run pks update',
+      `Allow ${metadata.violation_type} on ${shortConstant} for this file`,
       vscode.CodeActionKind.QuickFix
     );
 
     action.command = {
-      title: 'Run pks update',
-      command: 'ruby.packwerk.runPksUpdate',
-      arguments: []
+      title: 'Allow violation for file',
+      command: 'ruby.packwerk.scopedUpdate',
+      arguments: [metadata.file, metadata.constant_name, metadata.violation_type]
+    };
+
+    action.diagnostics = [diagnostic];
+    action.isPreferred = true;
+
+    return action;
+  }
+
+  private createPackUpdateAction(
+    diagnostic: vscode.Diagnostic,
+    metadata: ViolationMetadata
+  ): vscode.CodeAction {
+    const shortConstant = this.shortenConstantName(metadata.constant_name);
+    const action = new vscode.CodeAction(
+      `Allow ${metadata.violation_type} on ${shortConstant} for the pack`,
+      vscode.CodeActionKind.QuickFix
+    );
+
+    action.command = {
+      title: 'Allow violation for pack',
+      command: 'ruby.packwerk.packUpdate',
+      arguments: [metadata.file, metadata.constant_name, metadata.violation_type]
     };
 
     action.diagnostics = [diagnostic];
 
     return action;
+  }
+
+  // Shorten constant name for display (e.g., ::Foo::Bar::Baz -> Baz)
+  private shortenConstantName(constantName: string): string {
+    const parts = constantName.split('::').filter(p => p.length > 0);
+    return parts.length > 0 ? parts[parts.length - 1] : constantName;
   }
 }

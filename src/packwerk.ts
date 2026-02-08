@@ -1,6 +1,7 @@
 import {
   PackwerkOutput,
   PackwerkViolation,
+  ViolationMetadata,
 } from './packwerkOutput';
 import { TaskQueue, Task } from './taskQueue';
 import * as cp from 'child_process';
@@ -46,6 +47,35 @@ export class Packwerk {
     return message;
   }
 
+  // Create a diagnostic with violation metadata attached for code actions
+  private createDiagnostic(offence: PackwerkViolation): vscode.Diagnostic {
+    const range = new vscode.Range(
+      offence.line - 1,
+      offence.column,
+      offence.line - 1,
+      offence.constant_name.length + offence.column
+    );
+
+    const diagnostic = new vscode.Diagnostic(
+      range,
+      this.cleanMessage(offence.message),
+      vscode.DiagnosticSeverity.Error
+    );
+    diagnostic.source = 'packwerk';
+
+    // Store violation metadata for code actions
+    const metadata: ViolationMetadata = {
+      file: offence.file,
+      violation_type: offence.violation_type,
+      constant_name: offence.constant_name,
+      referencing_pack_name: offence.referencing_pack_name,
+      defining_pack_name: offence.defining_pack_name,
+    };
+    (diagnostic as any)._packwerk = metadata;
+
+    return diagnostic;
+  }
+
   public executeAll(onComplete?: () => void): void {
     let currentPath = vscode.workspace.rootPath;
     if (!currentPath) {
@@ -89,19 +119,7 @@ export class Packwerk {
       // Group violations by file
       const byFile = new Map<string, vscode.Diagnostic[]>();
       allViolations.forEach((offence: PackwerkViolation) => {
-        const range = new vscode.Range(
-          offence.line - 1,
-          offence.column,
-          offence.line - 1,
-          offence.constant_name.length + offence.column
-        );
-
-        const diagnostic = new vscode.Diagnostic(
-          range,
-          this.cleanMessage(offence.message),
-          vscode.DiagnosticSeverity.Error
-        );
-        diagnostic.source = 'packwerk';
+        const diagnostic = this.createDiagnostic(offence);
 
         if (!byFile.has(offence.file)) {
           byFile.set(offence.file, []);
@@ -173,23 +191,9 @@ export class Packwerk {
 
       this.diag.delete(uri);
 
-      let diagnostics: vscode.Diagnostic[] = [];
-      allViolations.forEach((offence: PackwerkViolation) => {
-        const range = new vscode.Range(
-          offence.line - 1,
-          offence.column,
-          offence.line - 1,
-          offence.constant_name.length + offence.column
-        );
-
-        const diagnostic = new vscode.Diagnostic(
-          range,
-          this.cleanMessage(offence.message),
-          vscode.DiagnosticSeverity.Error
-        );
-        diagnostic.source = 'packwerk';
-        diagnostics.push(diagnostic);
-      });
+      const diagnostics = allViolations.map((offence: PackwerkViolation) =>
+        this.createDiagnostic(offence)
+      );
       this.log(`execute: Setting ${diagnostics.length} diagnostics for ${relativeFileName}`);
       this.diag.set(uri, diagnostics);
     };
