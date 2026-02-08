@@ -12,7 +12,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
 
-  const packwerk = new Packwerk(diag);
+  const outputChannel = vscode.window.createOutputChannel('Pks');
+  context.subscriptions.push(outputChannel);
+
+  const packwerk = new Packwerk(diag, outputChannel);
   const disposable = vscode.commands.registerCommand('ruby.packwerk', () => {
     const document = vscode.window.activeTextEditor.document;
     packwerk.execute(document);

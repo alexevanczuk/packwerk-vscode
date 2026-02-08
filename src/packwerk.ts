@@ -21,17 +21,26 @@ export class Packwerk {
   public config: PackwerkConfig;
   private diag: vscode.DiagnosticCollection;
   private taskQueue: TaskQueue = new TaskQueue();
+  private output: vscode.OutputChannel;
 
   constructor(
     diagnostics: vscode.DiagnosticCollection,
+    outputChannel: vscode.OutputChannel,
   ) {
     this.diag = diagnostics;
+    this.output = outputChannel;
     this.config = getConfig();
+  }
+
+  private log(message: string): void {
+    const timestamp = new Date().toISOString();
+    this.output.appendLine(`[${timestamp}] ${message}`);
   }
 
   public executeAll(onComplete?: () => void): void {
     let currentPath = vscode.workspace.rootPath;
     if (!currentPath) {
+      this.log('executeAll: No workspace root path, aborting');
       return;
     }
 
@@ -39,12 +48,25 @@ export class Packwerk {
     // Sentinel URI used for task queue cancellation of whole-workspace runs
     const allUri = vscode.Uri.parse('packwerk:all');
 
+    this.log(`executeAll: Starting in cwd=${cwd}`);
+
     let onDidExec = (error: Error, stdout: string, stderr: string) => {
+      this.log(`executeAll: Command finished. error=${error?.message || 'none'}, stdout.length=${stdout?.length || 0}, stderr.length=${stderr?.length || 0}`);
+      if (error) {
+        this.log(`executeAll: Error details: code=${(error as any).code}, signal=${(error as any).signal}`);
+      }
+      if (stderr && stderr.length > 0) {
+        this.log(`executeAll: stderr=${stderr.substring(0, 500)}`);
+      }
+
       this.reportError(error, stderr);
       let packwerk = this.parse(stdout);
       if (packwerk === undefined || packwerk === null) {
+        this.log('executeAll: Parse returned null/undefined, aborting');
         return;
       }
+
+      this.log(`executeAll: Parsed ${packwerk.violations?.length || 0} violations`);
 
       this.diag.clear();
 
@@ -77,14 +99,17 @@ export class Packwerk {
         entries.push([fileUri, diagnostics]);
       });
 
+      this.log(`executeAll: Setting diagnostics for ${entries.length} files`);
       this.diag.set(entries);
+      this.log('executeAll: Done');
     };
 
     let task = new Task(allUri, (token) => {
       let command = `${this.config.executable} check --json`;
-      console.debug(`[DEBUG] Running command ${command}`)
+      this.log(`executeAll: Running command: ${command}`);
       let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (token.isCanceled) {
+          this.log('executeAll: Task was canceled');
           return;
         }
         onDidExec(error, stdout, stderr);
@@ -198,10 +223,12 @@ export class Packwerk {
 
   private parse(output: string): PackwerkOutput | null {
     let packwerk: PackwerkOutput;
+    this.log(`parse: output.length=${output?.length || 0}`);
+
     if (output.length < 1) {
-      console.debug(`[DEBUG] Output is ${output}`)
+      this.log('parse: Output is empty');
       let message = `command ${this.config.executable} returns empty output! please check configuration.`;
-      console.debug(`[DEBUG] ${message}`)
+      this.log(`parse: ${message}`);
       // For now, we do not show this error message. There are lots of reasons why this could fail, so
       // we turn it off so as to not bother the user
       // vscode.window.showWarningMessage(message);
@@ -210,12 +237,16 @@ export class Packwerk {
     }
 
     try {
+      this.log(`parse: Attempting JSON parse, first 200 chars: ${output.substring(0, 200)}`);
       packwerk = parseOutput(output);
+      this.log(`parse: JSON parse succeeded, status=${packwerk?.status}, violations count=${packwerk?.violations?.length}`);
     } catch (e) {
+      this.log(`parse: JSON parse failed with error: ${e}`);
       if (e instanceof SyntaxError) {
         let regex = /[\r\n \t]/g;
-        let message = output.replace(regex, ' ');
+        let message = output.replace(regex, ' ').substring(0, 500);
         let errorMessage = `Error on parsing output (It might non-JSON output) : "${message}"`;
+        this.log(`parse: ${errorMessage}`);
         vscode.window.showWarningMessage(errorMessage);
 
         return null;

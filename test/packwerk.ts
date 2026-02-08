@@ -5,10 +5,12 @@ import { Packwerk } from '../src/packwerk';
 describe('Packwerk', () => {
   let instance: Packwerk;
   let diagnostics: vscode.DiagnosticCollection;
+  let outputChannel: vscode.OutputChannel;
 
   beforeEach(() => {
     diagnostics = vscode.languages.createDiagnosticCollection();
-    instance = new Packwerk(diagnostics);
+    outputChannel = vscode.window.createOutputChannel('Pks Test');
+    instance = new Packwerk(diagnostics, outputChannel);
   });
 
   describe('initialization', () => {
