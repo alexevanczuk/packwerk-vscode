@@ -152,52 +152,96 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
-  // Register command for scoped pks update (single file)
+  // Register command: todo: this file -> CONSTANT
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.scopedUpdate',
-      async (file: string, constantName: string, violationType: string) => {
+      'ruby.packwerk.todoFile',
+      async (file: string, constantName: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
           vscode.window.showErrorMessage('No workspace folder open');
           return;
         }
 
-        const command = `pks update ${file} --constant ${constantName} --violation-type ${violationType}`;
+        const command = `pks update ${file} --constant ${constantName}`;
         exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
           if (error) {
             vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
             return;
           }
-          vscode.window.showInformationMessage(
-            `Allowed ${violationType} on ${constantName} for ${file}`
-          );
+          vscode.window.showInformationMessage(`Added ${constantName} to todo for ${file}`);
           packwerk.executeAll();
         });
       }
     )
   );
 
-  // Register command for pack-wide pks update
+  // Register command: todo: pack -> CONSTANT
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'ruby.packwerk.packUpdate',
-      async (file: string, constantName: string, violationType: string) => {
+      'ruby.packwerk.todoPackConstant',
+      async (file: string, constantName: string) => {
         const cwd = vscode.workspace.rootPath;
         if (!cwd) {
           vscode.window.showErrorMessage('No workspace folder open');
           return;
         }
 
-        const command = `pks update ${file} --pack --constant ${constantName} --violation-type ${violationType}`;
+        const command = `pks update ${file} --pack --constant ${constantName}`;
         exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
           if (error) {
             vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
             return;
           }
-          vscode.window.showInformationMessage(
-            `Allowed ${violationType} on ${constantName} for the pack`
-          );
+          vscode.window.showInformationMessage(`Added ${constantName} to todo for pack`);
+          packwerk.executeAll();
+        });
+      }
+    )
+  );
+
+  // Register command: todo: pack -> pack
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'ruby.packwerk.todoPackToPack',
+      async (file: string, definingPack: string) => {
+        const cwd = vscode.workspace.rootPath;
+        if (!cwd) {
+          vscode.window.showErrorMessage('No workspace folder open');
+          return;
+        }
+
+        const command = `pks update ${file} --pack --defining-pack ${definingPack}`;
+        exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
+          if (error) {
+            vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
+            return;
+          }
+          vscode.window.showInformationMessage(`Added all ${definingPack} violations to todo`);
+          packwerk.executeAll();
+        });
+      }
+    )
+  );
+
+  // Register command: todo: all
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'ruby.packwerk.todoAll',
+      async () => {
+        const cwd = vscode.workspace.rootPath;
+        if (!cwd) {
+          vscode.window.showErrorMessage('No workspace folder open');
+          return;
+        }
+
+        const command = 'pks update';
+        exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
+          if (error) {
+            vscode.window.showErrorMessage(`Failed: ${stderr || error.message}`);
+            return;
+          }
+          vscode.window.showInformationMessage('Updated all package_todo.yml files');
           packwerk.executeAll();
         });
       }
