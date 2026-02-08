@@ -1,15 +1,12 @@
 import {
   PackwerkOutput,
-  PackwerkFile,
   PackwerkViolation,
 } from './packwerkOutput';
 import { TaskQueue, Task } from './taskQueue';
 import * as cp from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfig, PackwerkConfig } from './configuration';
-import * as os from 'os';
 import { parseOutput } from './outputParser';
 
 function isFileUri(uri: vscode.Uri): boolean {
@@ -51,30 +48,32 @@ export class Packwerk {
 
       this.diag.clear();
 
+      // Group violations by file
+      const byFile = new Map<string, vscode.Diagnostic[]>();
+      packwerk.violations.forEach((offence: PackwerkViolation) => {
+        const range = new vscode.Range(
+          offence.line - 1,
+          offence.column,
+          offence.line - 1,
+          offence.constant_name.length + offence.column
+        );
+
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          offence.message,
+          vscode.DiagnosticSeverity.Error
+        );
+        diagnostic.source = 'packwerk';
+
+        if (!byFile.has(offence.file)) {
+          byFile.set(offence.file, []);
+        }
+        byFile.get(offence.file)!.push(diagnostic);
+      });
+
       let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
-      packwerk.files.forEach((file: PackwerkFile) => {
-        let diagnostics: vscode.Diagnostic[] = [];
-        file.violations.forEach((offence: PackwerkViolation) => {
-          const loc = offence.location;
-          const range = new vscode.Range(
-            loc.line - 1,
-            loc.column,
-            loc.line - 1,
-            loc.length + loc.column
-          );
-
-          let decolorizedMessage = offence.message.replace(
-            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-
-          const diagnostic = new vscode.Diagnostic(
-            range,
-            decolorizedMessage,
-            vscode.DiagnosticSeverity.Error
-          );
-          diagnostic.source = 'packwerk';
-          diagnostics.push(diagnostic);
-        });
-        const fileUri = vscode.Uri.file(cwd + '/' + file.path);
+      byFile.forEach((diagnostics, file) => {
+        const fileUri = vscode.Uri.file(cwd + '/' + file);
         entries.push([fileUri, diagnostics]);
       });
 
@@ -82,7 +81,7 @@ export class Packwerk {
     };
 
     let task = new Task(allUri, (token) => {
-      let command = `${this.config.executable} check`;
+      let command = `${this.config.executable} check --json`;
       console.debug(`[DEBUG] Running command ${command}`)
       let process = cp.exec(command, { cwd }, (error, stdout, stderr) => {
         if (token.isCanceled) {
@@ -127,33 +126,25 @@ export class Packwerk {
 
       this.diag.delete(uri);
 
-      packwerk.files.forEach((file: PackwerkFile) => {
-        let diagnostics: vscode.Diagnostic[] = [];
-        file.violations.forEach((offence: PackwerkViolation) => {
-          const loc = offence.location;
-          const range = new vscode.Range(
-            loc.line - 1,
-            loc.column,
-            loc.line - 1,
-            loc.length + loc.column
-          );
+      let diagnostics: vscode.Diagnostic[] = [];
+      packwerk.violations.forEach((offence: PackwerkViolation) => {
+        const range = new vscode.Range(
+          offence.line - 1,
+          offence.column,
+          offence.line - 1,
+          offence.constant_name.length + offence.column
+        );
 
-          // https://stackoverflow.com/questions/25245716/remove-all-ansi-colors-styles-from-strings/29497680
-          let decolorizedMessage = offence.message.replace(
-            /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-
-          const message = decolorizedMessage;
-          console.debug(`[DEBUG] Adding vscode.Diagnostic:`, { range, message })
-          const diagnostic = new vscode.Diagnostic(
-            range,
-            message,
-            vscode.DiagnosticSeverity.Error
-          );
-          diagnostic.source = 'packwerk';
-          diagnostics.push(diagnostic);
-        });
-        this.diag.set(uri, diagnostics);
+        console.debug(`[DEBUG] Adding vscode.Diagnostic:`, { range, message: offence.message })
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          offence.message,
+          vscode.DiagnosticSeverity.Error
+        );
+        diagnostic.source = 'packwerk';
+        diagnostics.push(diagnostic);
       });
+      this.diag.set(uri, diagnostics);
     };
 
     let task = new Task(uri, (token) => {
@@ -196,7 +187,7 @@ export class Packwerk {
     options: cp.ExecOptions,
     cb: (err: Error, stdout: string, stderr: string) => void
   ): cp.ChildProcess {
-    let command = `${this.config.executable} ${fileName}`
+    let command = `${this.config.executable} check --json ${fileName}`
     console.debug(`[DEBUG] Running command ${command}`)
 
     let child = cp.exec(command, options, cb);
