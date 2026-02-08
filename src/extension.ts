@@ -3,6 +3,7 @@ import { Packwerk } from './packwerk';
 import { onDidChangeConfiguration } from './configuration';
 import { PackwerkCodeActionProvider } from './codeActionProvider';
 import { PackageYmlLinkProvider } from './packageYmlLinkProvider';
+import { PackageTodoLinkProvider } from './packageTodoLinkProvider';
 import { exec } from 'child_process';
 import { findSigilInsertionLine } from './fileHeaderUtils';
 
@@ -86,6 +87,18 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerDocumentLinkProvider(
       packageYmlSelector,
       new PackageYmlLinkProvider()
+    )
+  );
+
+  // Register document link provider for package_todo.yml files
+  const packageTodoSelector: vscode.DocumentSelector = {
+    scheme: 'file',
+    pattern: '**/package_todo.yml'
+  };
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(
+      packageTodoSelector,
+      new PackageTodoLinkProvider()
     )
   );
 

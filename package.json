@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
