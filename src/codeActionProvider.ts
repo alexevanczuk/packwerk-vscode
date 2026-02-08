@@ -82,7 +82,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Add dependency',
-      command: 'ruby.packwerk.addDependency',
+      command: 'ruby.pks.addDependency',
       arguments: [sourcePack, targetPack]
     };
 
@@ -104,7 +104,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Make constant public',
-      command: 'ruby.packwerk.makePublic',
+      command: 'ruby.pks.makePublic',
       arguments: [constantName]
     };
 
@@ -126,7 +126,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Allow in file',
-      command: 'ruby.packwerk.todoFile',
+      command: 'ruby.pks.todoFile',
       arguments: [metadata.file, metadata.constant_name]
     };
 
@@ -148,7 +148,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Allow in pack',
-      command: 'ruby.packwerk.todoPackConstant',
+      command: 'ruby.pks.todoPackConstant',
       arguments: [metadata.file, metadata.constant_name]
     };
 
@@ -171,7 +171,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Allow pack to pack',
-      command: 'ruby.packwerk.todoPackToPack',
+      command: 'ruby.pks.todoPackToPack',
       arguments: [metadata.file, metadata.defining_pack_name]
     };
 
@@ -189,7 +189,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
 
     action.command = {
       title: 'Update all todos',
-      command: 'ruby.packwerk.todoAll',
+      command: 'ruby.pks.todoAll',
       arguments: []
     };
 
