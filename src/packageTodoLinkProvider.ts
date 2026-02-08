@@ -21,11 +21,11 @@ export class PackageTodoLinkProvider implements vscode.DocumentLinkProvider {
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
 
-      // Match pack name at start of line: "packs/foo:" or ".:""
-      const packMatch = line.match(/^(packs\/[^:]+|\.):$/);
+      // Match pack name at start of line: "packs/foo:", "gems/bar:", or "."
+      const packMatch = line.match(/^([a-zA-Z0-9_\-./]+):$/);
       if (packMatch) {
         const packName = packMatch[1];
-        if (packName !== '.') {
+        if (packName !== '.' && packName.includes('/')) {
           const packageYmlPath = path.join(workspaceRoot, packName, 'package.yml');
           const range = new vscode.Range(
             new vscode.Position(lineNum, 0),
