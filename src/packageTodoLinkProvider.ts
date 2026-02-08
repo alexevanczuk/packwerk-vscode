@@ -21,6 +21,26 @@ export class PackageTodoLinkProvider implements vscode.DocumentLinkProvider {
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
 
+      // Match pack name at start of line: "packs/foo:" or ".:""
+      const packMatch = line.match(/^(packs\/[^:]+|\.):$/);
+      if (packMatch) {
+        const packName = packMatch[1];
+        if (packName !== '.') {
+          const packageYmlPath = path.join(workspaceRoot, packName, 'package.yml');
+          const range = new vscode.Range(
+            new vscode.Position(lineNum, 0),
+            new vscode.Position(lineNum, packName.length)
+          );
+          const link = new vscode.DocumentLink(
+            range,
+            vscode.Uri.file(packageYmlPath)
+          );
+          links.push(link);
+        }
+        inFiles = false;
+        continue;
+      }
+
       // Check if we're entering a files section
       if (/^\s*files:\s*$/.test(line)) {
         inFiles = true;
