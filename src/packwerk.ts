@@ -54,7 +54,10 @@ export class Packwerk {
   }
 
   // Create a diagnostic with violation metadata attached for code actions
-  private createDiagnostic(offence: PackwerkViolation): vscode.Diagnostic {
+  private createDiagnostic(
+    offence: PackwerkViolation,
+    severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Error
+  ): vscode.Diagnostic {
     const range = new vscode.Range(
       offence.line - 1,
       offence.column,
@@ -65,7 +68,7 @@ export class Packwerk {
     const diagnostic = new vscode.Diagnostic(
       range,
       this.cleanMessage(offence.message),
-      vscode.DiagnosticSeverity.Error
+      severity
     );
     diagnostic.source = 'packwerk';
 
@@ -80,6 +83,87 @@ export class Packwerk {
     (diagnostic as any)._packwerk = metadata;
 
     return diagnostic;
+  }
+
+  // Execute pks check and populate a specific diagnostic collection with given severity
+  public executeAllToCollection(
+    targetDiag: vscode.DiagnosticCollection,
+    severity: vscode.DiagnosticSeverity,
+    onComplete?: () => void
+  ): void {
+    let currentPath = vscode.workspace.rootPath;
+    if (!currentPath) {
+      this.log('executeAllToCollection: No workspace root path, aborting');
+      return;
+    }
+
+    const cwd = currentPath;
+    const allUri = vscode.Uri.parse('packwerk:highlights');
+
+    this.log(`executeAllToCollection: Starting in cwd=${cwd}`);
+
+    let onDidExec = (error: Error, stdout: string, stderr: string) => {
+      this.log(`executeAllToCollection: Command finished`);
+      this.reportError(error, stderr);
+      let packwerk = this.parse(stdout);
+      if (packwerk === undefined || packwerk === null) {
+        this.log('executeAllToCollection: Parse returned null/undefined, aborting');
+        return;
+      }
+
+      const allViolations = [
+        ...(packwerk.violations || []),
+        ...(packwerk.stale_violations || []),
+        ...(packwerk.strict_mode_violations || []),
+      ].filter(v => this.hasValidLocation(v));
+
+      this.log(`executeAllToCollection: Parsed ${allViolations.length} displayable violations`);
+
+      targetDiag.clear();
+
+      const byFile = new Map<string, vscode.Diagnostic[]>();
+      allViolations.forEach((offence: PackwerkViolation) => {
+        const diagnostic = this.createDiagnostic(offence, severity);
+
+        if (!byFile.has(offence.file)) {
+          byFile.set(offence.file, []);
+        }
+        byFile.get(offence.file)!.push(diagnostic);
+      });
+
+      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
+      byFile.forEach((diagnostics, file) => {
+        const fileUri = vscode.Uri.file(cwd + '/' + file);
+        entries.push([fileUri, diagnostics]);
+      });
+
+      this.log(`executeAllToCollection: Setting diagnostics for ${entries.length} files`);
+      targetDiag.set(entries);
+    };
+
+    let task = new Task(allUri, (token) => {
+      let command = `${this.config.executable} --json`;
+      this.log(`executeAllToCollection: Running command: ${command}`);
+      let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
+        try {
+          if (token.isCanceled) {
+            this.log('executeAllToCollection: Task was canceled');
+            return;
+          }
+          onDidExec(error, stdout, stderr);
+          if (onComplete) {
+            onComplete();
+          }
+        } catch (e) {
+          this.log(`executeAllToCollection: Exception in callback: ${e}`);
+        } finally {
+          token.finished();
+        }
+      });
+      return () => process.kill();
+    });
+
+    this.taskQueue.enqueue(task);
   }
 
   public executeAll(onComplete?: () => void): void {

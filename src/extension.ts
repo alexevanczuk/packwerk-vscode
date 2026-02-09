@@ -15,6 +15,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
 
+  // Separate diagnostic collection for highlight mode (blue hints)
+  const highlightDiag = vscode.languages.createDiagnosticCollection('ruby-highlights');
+  context.subscriptions.push(highlightDiag);
+
+  // Track highlight toggle state
+  let highlightsEnabled = false;
+
   const outputChannel = vscode.window.createOutputChannel('Pks');
   context.subscriptions.push(outputChannel);
 
@@ -130,6 +137,24 @@ export function activate(context: vscode.ExtensionContext): void {
           vscode.window.showInformationMessage('Constant definitions refreshed');
         }
       );
+    })
+  );
+
+  // Register command to toggle highlight violations
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ruby.pks.toggleHighlightViolations', () => {
+      highlightsEnabled = !highlightsEnabled;
+
+      if (highlightsEnabled) {
+        vscode.window.showInformationMessage('Pks: Highlight violations enabled');
+        packwerk.executeAllToCollection(
+          highlightDiag,
+          vscode.DiagnosticSeverity.Hint
+        );
+      } else {
+        vscode.window.showInformationMessage('Pks: Highlight violations disabled');
+        highlightDiag.clear();
+      }
     })
   );
 
