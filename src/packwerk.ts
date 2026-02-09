@@ -85,29 +85,32 @@ export class Packwerk {
     return diagnostic;
   }
 
-  // Execute pks check and populate a specific diagnostic collection with given severity
-  public executeAllToCollection(
+  // Execute pks check with --ignore-recorded-violations on a single file
+  // and populate targetDiag with hint-level diagnostics
+  public executeHighlights(
+    document: vscode.TextDocument,
     targetDiag: vscode.DiagnosticCollection,
-    severity: vscode.DiagnosticSeverity,
     onComplete?: () => void
   ): void {
-    let currentPath = vscode.workspace.rootPath;
-    if (!currentPath) {
-      this.log('executeAllToCollection: No workspace root path, aborting');
+    if (
+      (document.languageId !== 'gemfile' && document.languageId !== 'ruby') ||
+      document.isUntitled ||
+      !isFileUri(document.uri)
+    ) {
       return;
     }
 
-    const cwd = currentPath;
-    const allUri = vscode.Uri.parse('packwerk:highlights');
-
-    this.log(`executeAllToCollection: Starting in cwd=${cwd}`);
+    const fileName = document.fileName;
+    const uri = document.uri;
+    let currentPath = getCurrentPath(fileName);
+    let relativeFileName = fileName.replace(currentPath + '/', '');
 
     let onDidExec = (error: Error, stdout: string, stderr: string) => {
-      this.log(`executeAllToCollection: Command finished`);
+      this.log(`executeHighlights: Command finished for ${relativeFileName}`);
       this.reportError(error, stderr);
       let packwerk = this.parse(stdout);
       if (packwerk === undefined || packwerk === null) {
-        this.log('executeAllToCollection: Parse returned null/undefined, aborting');
+        this.log('executeHighlights: Parse returned null/undefined, aborting');
         return;
       }
 
@@ -117,37 +120,22 @@ export class Packwerk {
         ...(packwerk.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
-      this.log(`executeAllToCollection: Parsed ${allViolations.length} displayable violations`);
+      targetDiag.delete(uri);
 
-      targetDiag.clear();
-
-      const byFile = new Map<string, vscode.Diagnostic[]>();
-      allViolations.forEach((offence: PackwerkViolation) => {
-        const diagnostic = this.createDiagnostic(offence, severity);
-
-        if (!byFile.has(offence.file)) {
-          byFile.set(offence.file, []);
-        }
-        byFile.get(offence.file)!.push(diagnostic);
-      });
-
-      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
-      byFile.forEach((diagnostics, file) => {
-        const fileUri = vscode.Uri.file(cwd + '/' + file);
-        entries.push([fileUri, diagnostics]);
-      });
-
-      this.log(`executeAllToCollection: Setting diagnostics for ${entries.length} files`);
-      targetDiag.set(entries);
+      const diagnostics = allViolations.map((offence: PackwerkViolation) =>
+        this.createDiagnostic(offence, vscode.DiagnosticSeverity.Hint)
+      );
+      this.log(`executeHighlights: Setting ${diagnostics.length} hint diagnostics for ${relativeFileName}`);
+      targetDiag.set(uri, diagnostics);
     };
 
-    let task = new Task(allUri, (token) => {
-      let command = `${this.config.executable} --json`;
-      this.log(`executeAllToCollection: Running command: ${command}`);
-      let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
+    let task = new Task(uri, (token) => {
+      // Use --ignore-recorded-violations to show all violations including those in package_todo.yml
+      let command = `${this.config.executable} --json --ignore-recorded-violations ${relativeFileName}`;
+      this.log(`executeHighlights: Running command: ${command}`);
+      let process = cp.exec(command, { cwd: currentPath, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
         try {
           if (token.isCanceled) {
-            this.log('executeAllToCollection: Task was canceled');
             return;
           }
           onDidExec(error, stdout, stderr);
@@ -155,7 +143,7 @@ export class Packwerk {
             onComplete();
           }
         } catch (e) {
-          this.log(`executeAllToCollection: Exception in callback: ${e}`);
+          this.log(`executeHighlights: Exception in callback: ${e}`);
         } finally {
           token.finished();
         }

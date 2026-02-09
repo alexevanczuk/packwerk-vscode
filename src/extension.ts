@@ -140,6 +140,17 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // Helper to run highlights on current editor
+  const runHighlightsOnActiveEditor = () => {
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+      packwerk.executeHighlights(editor.document, highlightDiag);
+    }
+  };
+
+  // Listener for editor changes (only active when highlights enabled)
+  let highlightEditorChangeListener: vscode.Disposable | undefined;
+
   // Register command to toggle highlight violations
   context.subscriptions.push(
     vscode.commands.registerCommand('ruby.pks.toggleHighlightViolations', () => {
@@ -147,13 +158,23 @@ export function activate(context: vscode.ExtensionContext): void {
 
       if (highlightsEnabled) {
         vscode.window.showInformationMessage('Pks: Highlight violations enabled');
-        packwerk.executeAllToCollection(
-          highlightDiag,
-          vscode.DiagnosticSeverity.Hint
-        );
+        // Run on current file
+        runHighlightsOnActiveEditor();
+        // Listen for editor changes
+        highlightEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+          if (editor) {
+            packwerk.executeHighlights(editor.document, highlightDiag);
+          }
+        });
+        context.subscriptions.push(highlightEditorChangeListener);
       } else {
         vscode.window.showInformationMessage('Pks: Highlight violations disabled');
         highlightDiag.clear();
+        // Stop listening for editor changes
+        if (highlightEditorChangeListener) {
+          highlightEditorChangeListener.dispose();
+          highlightEditorChangeListener = undefined;
+        }
       }
     })
   );
