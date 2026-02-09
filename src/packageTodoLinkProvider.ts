@@ -1,7 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { ConstantDefinitionCache } from './constantDefinitionCache';
 
 export class PackageTodoLinkProvider implements vscode.DocumentLinkProvider {
+  private constantCache: ConstantDefinitionCache;
+
+  constructor(constantCache: ConstantDefinitionCache) {
+    this.constantCache = constantCache;
+  }
+
   provideDocumentLinks(
     document: vscode.TextDocument,
     _token: vscode.CancellationToken
@@ -38,6 +45,33 @@ export class PackageTodoLinkProvider implements vscode.DocumentLinkProvider {
           links.push(link);
         }
         inFiles = false;
+        continue;
+      }
+
+      // Match constant name: '  "::ConstantName":'
+      const constantMatch = line.match(/^(\s*)"(::[\w:]+)":\s*$/);
+      if (constantMatch) {
+        const prefix = constantMatch[1];
+        const constantName = constantMatch[2];
+        const definitionPath = this.constantCache.getDefinitionPath(constantName);
+
+        if (definitionPath) {
+          const fullPath = path.join(workspaceRoot, definitionPath);
+          // +1 for the opening quote
+          const startChar = prefix.length + 1;
+          const endChar = startChar + constantName.length;
+
+          const range = new vscode.Range(
+            new vscode.Position(lineNum, startChar),
+            new vscode.Position(lineNum, endChar)
+          );
+
+          const link = new vscode.DocumentLink(
+            range,
+            vscode.Uri.file(fullPath)
+          );
+          links.push(link);
+        }
         continue;
       }
 

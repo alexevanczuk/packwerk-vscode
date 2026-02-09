@@ -4,6 +4,7 @@ import { onDidChangeConfiguration } from './configuration';
 import { PackwerkCodeActionProvider } from './codeActionProvider';
 import { PackageYmlLinkProvider } from './packageYmlLinkProvider';
 import { PackageTodoLinkProvider } from './packageTodoLinkProvider';
+import { ConstantDefinitionCache } from './constantDefinitionCache';
 import { exec } from 'child_process';
 import { findSigilInsertionLine } from './fileHeaderUtils';
 
@@ -18,6 +19,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(outputChannel);
 
   const packwerk = new Packwerk(diag, outputChannel);
+  const constantCache = new ConstantDefinitionCache(outputChannel);
+
+  // Load constant definitions on activation
+  constantCache.refresh().catch(() => {
+    // Silently ignore errors on initial load
+  });
   const disposable = vscode.commands.registerCommand('ruby.pks', () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -104,8 +111,26 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.languages.registerDocumentLinkProvider(
       packageTodoSelector,
-      new PackageTodoLinkProvider()
+      new PackageTodoLinkProvider(constantCache)
     )
+  );
+
+  // Register command to refresh constant definitions cache
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ruby.pks.refreshDefinitions', () => {
+      outputChannel.show(true);
+      vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Refreshing constant definitions...',
+          cancellable: false
+        },
+        async () => {
+          await constantCache.refresh();
+          vscode.window.showInformationMessage('Constant definitions refreshed');
+        }
+      );
+    })
   );
 
   // Register command to make constant public

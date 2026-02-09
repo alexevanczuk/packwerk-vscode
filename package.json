@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.30",
+  "version": "0.0.32",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
@@ -57,6 +57,10 @@
       {
         "command": "ruby.pks.goToPackageYml",
         "title": "Pks: Go to package.yml"
+      },
+      {
+        "command": "ruby.pks.refreshDefinitions",
+        "title": "Pks: Refresh constant definitions"
       }
     ],
     "configuration": {
