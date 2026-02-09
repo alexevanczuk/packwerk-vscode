@@ -86,10 +86,10 @@ export class Packwerk {
   }
 
   // Execute pks check with --ignore-recorded-violations on a single file
-  // and populate targetDiag with hint-level diagnostics
+  // and call back with ranges for highlighting
   public executeHighlights(
     document: vscode.TextDocument,
-    targetDiag: vscode.DiagnosticCollection,
+    onRanges: (ranges: vscode.Range[]) => void,
     onComplete?: () => void
   ): void {
     if (
@@ -97,6 +97,7 @@ export class Packwerk {
       document.isUntitled ||
       !isFileUri(document.uri)
     ) {
+      onRanges([]);
       return;
     }
 
@@ -111,6 +112,7 @@ export class Packwerk {
       let packwerk = this.parse(stdout);
       if (packwerk === undefined || packwerk === null) {
         this.log('executeHighlights: Parse returned null/undefined, aborting');
+        onRanges([]);
         return;
       }
 
@@ -120,13 +122,19 @@ export class Packwerk {
         ...(packwerk.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
-      targetDiag.delete(uri);
+      const ranges = allViolations.map((offence: PackwerkViolation) => {
+        // Get the constant name without leading ::
+        const displayName = offence.constant_name.replace(/^::/, '');
+        return new vscode.Range(
+          offence.line - 1,
+          offence.column,
+          offence.line - 1,
+          offence.column + displayName.length
+        );
+      });
 
-      const diagnostics = allViolations.map((offence: PackwerkViolation) =>
-        this.createDiagnostic(offence, vscode.DiagnosticSeverity.Hint)
-      );
-      this.log(`executeHighlights: Setting ${diagnostics.length} hint diagnostics for ${relativeFileName}`);
-      targetDiag.set(uri, diagnostics);
+      this.log(`executeHighlights: Found ${ranges.length} violations for ${relativeFileName}`);
+      onRanges(ranges);
     };
 
     let task = new Task(uri, (token) => {

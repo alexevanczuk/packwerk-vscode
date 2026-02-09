@@ -15,9 +15,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
 
-  // Separate diagnostic collection for highlight mode (blue hints)
-  const highlightDiag = vscode.languages.createDiagnosticCollection('ruby-highlights');
-  context.subscriptions.push(highlightDiag);
+  // Decoration type for highlight mode (bright blue wavy underline like Sorbet)
+  const highlightDecorationType = vscode.window.createTextEditorDecorationType({
+    textDecoration: 'underline wavy #4FC1FF'
+  });
+  context.subscriptions.push(highlightDecorationType);
 
   // Track highlight toggle state
   let highlightsEnabled = false;
@@ -140,12 +142,16 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Helper to run highlights on current editor
-  const runHighlightsOnActiveEditor = () => {
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-      packwerk.executeHighlights(editor.document, highlightDiag);
-    }
+  // Helper to apply highlight decorations to an editor
+  const applyHighlightsToEditor = (editor: vscode.TextEditor) => {
+    packwerk.executeHighlights(editor.document, (ranges) => {
+      editor.setDecorations(highlightDecorationType, ranges);
+    });
+  };
+
+  // Helper to clear highlights from an editor
+  const clearHighlightsFromEditor = (editor: vscode.TextEditor) => {
+    editor.setDecorations(highlightDecorationType, []);
   };
 
   // Listener for editor changes (only active when highlights enabled)
@@ -159,17 +165,21 @@ export function activate(context: vscode.ExtensionContext): void {
       if (highlightsEnabled) {
         vscode.window.showInformationMessage('Pks: Highlight violations enabled');
         // Run on current file
-        runHighlightsOnActiveEditor();
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          applyHighlightsToEditor(editor);
+        }
         // Listen for editor changes
         highlightEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
           if (editor) {
-            packwerk.executeHighlights(editor.document, highlightDiag);
+            applyHighlightsToEditor(editor);
           }
         });
         context.subscriptions.push(highlightEditorChangeListener);
       } else {
         vscode.window.showInformationMessage('Pks: Highlight violations disabled');
-        highlightDiag.clear();
+        // Clear highlights from all visible editors
+        vscode.window.visibleTextEditors.forEach(clearHighlightsFromEditor);
         // Stop listening for editor changes
         if (highlightEditorChangeListener) {
           highlightEditorChangeListener.dispose();
