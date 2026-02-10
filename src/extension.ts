@@ -38,17 +38,6 @@ export function activate(context: vscode.ExtensionContext): void {
   constantCache.refresh().catch(() => {
     // Silently ignore errors on initial load
   });
-  const disposable = vscode.commands.registerCommand('ruby.pks', () => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showErrorMessage('No active editor');
-      return;
-    }
-    outputChannel.show(true);
-    packwerk.execute(editor.document);
-  });
-
-  context.subscriptions.push(disposable);
 
   // Register command to run pks check on all files
   context.subscriptions.push(
