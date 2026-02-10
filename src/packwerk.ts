@@ -143,6 +143,17 @@ export class Packwerk {
           vscode.DiagnosticSeverity.Information
         );
         diagnostic.source = 'packwerk';
+
+        // Attach violation metadata for code actions
+        const metadata: ViolationMetadata = {
+          file: offence.file,
+          violation_type: offence.violation_type,
+          constant_name: offence.constant_name,
+          referencing_pack_name: offence.referencing_pack_name,
+          defining_pack_name: offence.defining_pack_name,
+        };
+        (diagnostic as any)._packwerk = metadata;
+
         diagnostics.push(diagnostic);
       });
 
