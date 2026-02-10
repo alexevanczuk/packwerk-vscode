@@ -23,6 +23,9 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
       const shortRefPack = this.shortenPackName(metadata.referencing_pack_name);
       const shortDefPack = this.shortenPackName(metadata.defining_pack_name);
 
+      // Check if this is a highlight diagnostic (already recorded violation)
+      const isHighlight = diagnostic.severity === vscode.DiagnosticSeverity.Information;
+
       // 1. First action depends on violation type
       if (metadata.violation_type === 'dependency') {
         // Add: foo -> bar
@@ -38,17 +41,20 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
         actions.push(this.createMakePublicAction(diagnostic, metadata.constant_name));
       }
 
-      // 2. todo: this file -> ::Bar
-      actions.push(this.createTodoFileAction(diagnostic, metadata));
+      // Todo actions only for new violations (errors), not for highlights
+      if (!isHighlight) {
+        // 2. todo: this file -> ::Bar
+        actions.push(this.createTodoFileAction(diagnostic, metadata));
 
-      // 3. todo: foo -> ::Bar
-      actions.push(this.createTodoPackConstantAction(diagnostic, metadata, shortRefPack));
+        // 3. todo: foo -> ::Bar
+        actions.push(this.createTodoPackConstantAction(diagnostic, metadata, shortRefPack));
 
-      // 4. todo: foo -> bar
-      actions.push(this.createTodoPackToPackAction(diagnostic, metadata, shortRefPack, shortDefPack));
+        // 4. todo: foo -> bar
+        actions.push(this.createTodoPackToPackAction(diagnostic, metadata, shortRefPack, shortDefPack));
 
-      // 5. todo: all
-      actions.push(this.createTodoAllAction(diagnostic));
+        // 5. todo: all
+        actions.push(this.createTodoAllAction(diagnostic));
+      }
     }
 
     return actions;

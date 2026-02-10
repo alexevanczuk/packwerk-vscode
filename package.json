@@ -1,6 +1,6 @@
 {
   "name": "pks-vscode",
-  "version": "0.0.32",
+  "version": "0.0.34",
   "publisher": "alexevanczuk",
   "displayName": "Pks",
   "description": "execute pks check for current Ruby code.",
@@ -61,6 +61,10 @@
       {
         "command": "ruby.pks.refreshDefinitions",
         "title": "Pks: Refresh constant definitions"
+      },
+      {
+        "command": "ruby.pks.toggleHighlightViolations",
+        "title": "Pks: Toggle highlight violations"
       }
     ],
     "configuration": {

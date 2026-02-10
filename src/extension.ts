@@ -15,6 +15,19 @@ export function activate(context: vscode.ExtensionContext): void {
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
 
+  // Diagnostic collection for highlight mode (for Error Lens messages)
+  const highlightDiag = vscode.languages.createDiagnosticCollection('ruby-highlights');
+  context.subscriptions.push(highlightDiag);
+
+  // Decoration type for highlight mode (bright blue wavy underline like Sorbet)
+  const highlightDecorationType = vscode.window.createTextEditorDecorationType({
+    textDecoration: 'underline wavy #4FC1FF'
+  });
+  context.subscriptions.push(highlightDecorationType);
+
+  // Track highlight toggle state
+  let highlightsEnabled = false;
+
   const outputChannel = vscode.window.createOutputChannel('Pks');
   context.subscriptions.push(outputChannel);
 
@@ -130,6 +143,56 @@ export function activate(context: vscode.ExtensionContext): void {
           vscode.window.showInformationMessage('Constant definitions refreshed');
         }
       );
+    })
+  );
+
+  // Helper to apply highlight decorations and diagnostics to an editor
+  const applyHighlightsToEditor = (editor: vscode.TextEditor) => {
+    packwerk.executeHighlights(editor.document, (ranges, diagnostics) => {
+      editor.setDecorations(highlightDecorationType, ranges);
+      highlightDiag.set(editor.document.uri, diagnostics);
+    });
+  };
+
+  // Helper to clear highlights from an editor
+  const clearHighlightsFromEditor = (editor: vscode.TextEditor) => {
+    editor.setDecorations(highlightDecorationType, []);
+    highlightDiag.delete(editor.document.uri);
+  };
+
+  // Listener for editor changes (only active when highlights enabled)
+  let highlightEditorChangeListener: vscode.Disposable | undefined;
+
+  // Register command to toggle highlight violations
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ruby.pks.toggleHighlightViolations', () => {
+      highlightsEnabled = !highlightsEnabled;
+
+      if (highlightsEnabled) {
+        vscode.window.showInformationMessage('Pks: Highlight violations enabled');
+        // Run on current file
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          applyHighlightsToEditor(editor);
+        }
+        // Listen for editor changes
+        highlightEditorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+          if (editor) {
+            applyHighlightsToEditor(editor);
+          }
+        });
+        context.subscriptions.push(highlightEditorChangeListener);
+      } else {
+        vscode.window.showInformationMessage('Pks: Highlight violations disabled');
+        // Clear highlights from all visible editors
+        vscode.window.visibleTextEditors.forEach(clearHighlightsFromEditor);
+        highlightDiag.clear();
+        // Stop listening for editor changes
+        if (highlightEditorChangeListener) {
+          highlightEditorChangeListener.dispose();
+          highlightEditorChangeListener = undefined;
+        }
+      }
     })
   );
 

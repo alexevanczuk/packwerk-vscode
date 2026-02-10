@@ -54,7 +54,10 @@ export class Packwerk {
   }
 
   // Create a diagnostic with violation metadata attached for code actions
-  private createDiagnostic(offence: PackwerkViolation): vscode.Diagnostic {
+  private createDiagnostic(
+    offence: PackwerkViolation,
+    severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Error
+  ): vscode.Diagnostic {
     const range = new vscode.Range(
       offence.line - 1,
       offence.column,
@@ -65,7 +68,7 @@ export class Packwerk {
     const diagnostic = new vscode.Diagnostic(
       range,
       this.cleanMessage(offence.message),
-      vscode.DiagnosticSeverity.Error
+      severity
     );
     diagnostic.source = 'packwerk';
 
@@ -80,6 +83,107 @@ export class Packwerk {
     (diagnostic as any)._packwerk = metadata;
 
     return diagnostic;
+  }
+
+  // Execute pks check with --ignore-recorded-violations on a single file
+  // Returns both ranges (for decorations) and diagnostics (for Error Lens)
+  public executeHighlights(
+    document: vscode.TextDocument,
+    onResults: (ranges: vscode.Range[], diagnostics: vscode.Diagnostic[]) => void,
+    onComplete?: () => void
+  ): void {
+    if (
+      (document.languageId !== 'gemfile' && document.languageId !== 'ruby') ||
+      document.isUntitled ||
+      !isFileUri(document.uri)
+    ) {
+      onResults([], []);
+      return;
+    }
+
+    const fileName = document.fileName;
+    const uri = document.uri;
+    let currentPath = getCurrentPath(fileName);
+    let relativeFileName = fileName.replace(currentPath + '/', '');
+
+    let onDidExec = (error: Error, stdout: string, stderr: string) => {
+      this.log(`executeHighlights: Command finished for ${relativeFileName}`);
+      this.reportError(error, stderr);
+      let packwerk = this.parse(stdout);
+      if (packwerk === undefined || packwerk === null) {
+        this.log('executeHighlights: Parse returned null/undefined, aborting');
+        onResults([], []);
+        return;
+      }
+
+      const allViolations = [
+        ...(packwerk.violations || []),
+        ...(packwerk.stale_violations || []),
+        ...(packwerk.strict_mode_violations || []),
+      ].filter(v => this.hasValidLocation(v));
+
+      const ranges: vscode.Range[] = [];
+      const diagnostics: vscode.Diagnostic[] = [];
+
+      allViolations.forEach((offence: PackwerkViolation) => {
+        // Get the constant name without leading ::
+        const displayName = offence.constant_name.replace(/^::/, '');
+        const range = new vscode.Range(
+          offence.line - 1,
+          offence.column,
+          offence.line - 1,
+          offence.column + displayName.length
+        );
+        ranges.push(range);
+
+        // Create diagnostic for Error Lens (use Information severity for blue icon)
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          this.cleanMessage(offence.message),
+          vscode.DiagnosticSeverity.Information
+        );
+        diagnostic.source = 'packwerk';
+
+        // Attach violation metadata for code actions
+        const metadata: ViolationMetadata = {
+          file: offence.file,
+          violation_type: offence.violation_type,
+          constant_name: offence.constant_name,
+          referencing_pack_name: offence.referencing_pack_name,
+          defining_pack_name: offence.defining_pack_name,
+        };
+        (diagnostic as any)._packwerk = metadata;
+
+        diagnostics.push(diagnostic);
+      });
+
+      this.log(`executeHighlights: Found ${ranges.length} violations for ${relativeFileName}`);
+      onResults(ranges, diagnostics);
+    };
+
+    let task = new Task(uri, (token) => {
+      // Use --ignore-recorded-violations to show all violations including those in package_todo.yml
+      let command = `${this.config.executable} --json --ignore-recorded-violations ${relativeFileName}`;
+      this.log(`executeHighlights: Running command: ${command}`);
+      let process = cp.exec(command, { cwd: currentPath, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
+        try {
+          if (token.isCanceled) {
+            return;
+          }
+          onDidExec(error, stdout, stderr);
+          if (onComplete) {
+            onComplete();
+          }
+        } catch (e) {
+          this.log(`executeHighlights: Exception in callback: ${e}`);
+        } finally {
+          token.finished();
+        }
+      });
+      return () => process.kill();
+    });
+
+    this.taskQueue.enqueue(task);
   }
 
   public executeAll(onComplete?: () => void): void {
