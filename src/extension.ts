@@ -15,6 +15,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
 
+  // Diagnostic collection for highlight mode (for Error Lens messages)
+  const highlightDiag = vscode.languages.createDiagnosticCollection('ruby-highlights');
+  context.subscriptions.push(highlightDiag);
+
   // Decoration type for highlight mode (bright blue wavy underline like Sorbet)
   const highlightDecorationType = vscode.window.createTextEditorDecorationType({
     textDecoration: 'underline wavy #4FC1FF'
@@ -142,16 +146,18 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Helper to apply highlight decorations to an editor
+  // Helper to apply highlight decorations and diagnostics to an editor
   const applyHighlightsToEditor = (editor: vscode.TextEditor) => {
-    packwerk.executeHighlights(editor.document, (ranges) => {
+    packwerk.executeHighlights(editor.document, (ranges, diagnostics) => {
       editor.setDecorations(highlightDecorationType, ranges);
+      highlightDiag.set(editor.document.uri, diagnostics);
     });
   };
 
   // Helper to clear highlights from an editor
   const clearHighlightsFromEditor = (editor: vscode.TextEditor) => {
     editor.setDecorations(highlightDecorationType, []);
+    highlightDiag.delete(editor.document.uri);
   };
 
   // Listener for editor changes (only active when highlights enabled)
@@ -180,6 +186,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showInformationMessage('Pks: Highlight violations disabled');
         // Clear highlights from all visible editors
         vscode.window.visibleTextEditors.forEach(clearHighlightsFromEditor);
+        highlightDiag.clear();
         // Stop listening for editor changes
         if (highlightEditorChangeListener) {
           highlightEditorChangeListener.dispose();

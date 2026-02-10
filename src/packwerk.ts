@@ -86,10 +86,10 @@ export class Packwerk {
   }
 
   // Execute pks check with --ignore-recorded-violations on a single file
-  // and call back with ranges for highlighting
+  // Returns both ranges (for decorations) and diagnostics (for Error Lens)
   public executeHighlights(
     document: vscode.TextDocument,
-    onRanges: (ranges: vscode.Range[]) => void,
+    onResults: (ranges: vscode.Range[], diagnostics: vscode.Diagnostic[]) => void,
     onComplete?: () => void
   ): void {
     if (
@@ -97,7 +97,7 @@ export class Packwerk {
       document.isUntitled ||
       !isFileUri(document.uri)
     ) {
-      onRanges([]);
+      onResults([], []);
       return;
     }
 
@@ -112,7 +112,7 @@ export class Packwerk {
       let packwerk = this.parse(stdout);
       if (packwerk === undefined || packwerk === null) {
         this.log('executeHighlights: Parse returned null/undefined, aborting');
-        onRanges([]);
+        onResults([], []);
         return;
       }
 
@@ -122,19 +122,32 @@ export class Packwerk {
         ...(packwerk.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
-      const ranges = allViolations.map((offence: PackwerkViolation) => {
+      const ranges: vscode.Range[] = [];
+      const diagnostics: vscode.Diagnostic[] = [];
+
+      allViolations.forEach((offence: PackwerkViolation) => {
         // Get the constant name without leading ::
         const displayName = offence.constant_name.replace(/^::/, '');
-        return new vscode.Range(
+        const range = new vscode.Range(
           offence.line - 1,
           offence.column,
           offence.line - 1,
           offence.column + displayName.length
         );
+        ranges.push(range);
+
+        // Create diagnostic for Error Lens (use Information severity for blue icon)
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          this.cleanMessage(offence.message),
+          vscode.DiagnosticSeverity.Information
+        );
+        diagnostic.source = 'packwerk';
+        diagnostics.push(diagnostic);
       });
 
       this.log(`executeHighlights: Found ${ranges.length} violations for ${relativeFileName}`);
-      onRanges(ranges);
+      onResults(ranges, diagnostics);
     };
 
     let task = new Task(uri, (token) => {
