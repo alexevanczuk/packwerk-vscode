@@ -7,11 +7,11 @@ A VS Code extension for [pks](https://github.com/alexevanczuk/packs), a tool for
 Install from [Open VSX](https://open-vsx.org/extension/alexevanczuk/pks-vscode):
 
 ```bash
-# VS Code
-code --install-extension alexevanczuk.pks-vscode
-
 # Cursor
 cursor --install-extension alexevanczuk.pks-vscode
+
+# VS Code
+curl -sL $(curl -s https://open-vsx.org/api/alexevanczuk/pks-vscode/latest | jq -r .files.download) -o /tmp/pks.vsix && code --install-extension /tmp/pks.vsix
 ```
 
 ## Features
