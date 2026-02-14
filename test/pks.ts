@@ -1,16 +1,16 @@
 import { expect } from 'chai';
 import * as vscode from 'vscode';
-import { Packwerk } from '../src/packwerk';
+import { Pks } from '../src/pks';
 
-describe('Packwerk', () => {
-  let instance: Packwerk;
+describe('Pks', () => {
+  let instance: Pks;
   let diagnostics: vscode.DiagnosticCollection;
   let outputChannel: vscode.OutputChannel;
 
   beforeEach(() => {
     diagnostics = vscode.languages.createDiagnosticCollection();
     outputChannel = vscode.window.createOutputChannel('Pks Test');
-    instance = new Packwerk(diagnostics, outputChannel);
+    instance = new Pks(diagnostics, outputChannel);
   });
 
   describe('initialization', () => {

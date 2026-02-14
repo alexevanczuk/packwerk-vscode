@@ -1,8 +1,8 @@
-# Packwerk for Visual Studio Code
+# Pks for Visual Studio Code
 
-This extension provides an interface to packwerk for vscode.
+This extension provides an interface to pks for vscode.
 
-[packwerk](https://github.com/Shopify/packwerk/) helps modularize large Rails monoliths
+[pks](https://github.com/alexevanczuk/packs) helps modularize large Rails monoliths
 
 ## Installation
 
@@ -15,7 +15,7 @@ Install from the [Open VSX Registry](https://open-vsx.org/extension/alexevanczuk
 cursor --install-extension alexevanczuk.pks-vscode
 ```
 
-![exec on save](./images/packwerkvscode.gif)
+![exec on save](./images/pksvscode.gif)
 
 ## Stability
 
@@ -27,12 +27,12 @@ Specify configuration (via navigating to `File > Preferences > Workspace Setting
 
 ```javascript
 {
-  // If not specified, uses `bin/packwerk check` (default and recommended, as this is what the packwerk setup guide recommends for executing packwerk)
-  // You may want to change this if, for example, you have a remote development environment that executes packwerk in a remote box.
-  "ruby.packwerk.executable": "",
+  // If not specified, uses `pks check` (default)
+  // You may want to change this if, for example, you have a remote development environment that executes pks in a remote box.
+  "ruby.pks.executable": "",
 
   // default true
-  "ruby.packwerk.onSave": true
+  "ruby.pks.onSave": true
 }
 ```
 
@@ -83,8 +83,8 @@ To build and test the extension locally in VSCode:
      ```
 
 3. **Test the extension:**
-   - Open a Ruby project with packwerk/packs configured
-   - Open a Ruby file with packwerk violations
+   - Open a Ruby project with pks configured
+   - Open a Ruby file with pks violations
    - You should see code actions (lightbulb icon) on violation lines:
      - "Make constant public with # pack_public: true" for privacy violations
      - "Add dependency from X to Y" for dependency violations

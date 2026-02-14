@@ -1,16 +1,16 @@
 import * as vs from 'vscode';
-import { Packwerk } from './packwerk';
+import { Pks } from './pks';
 
-export interface PackwerkConfig {
+export interface PksConfig {
   executable: string;
   onSave: boolean;
 }
 
 /**
- * Read the workspace configuration for 'ruby.pks' and return a PackwerkConfig.
- * @return {PackwerkConfig} config object
+ * Read the workspace configuration for 'ruby.pks' and return a PksConfig.
+ * @return {PksConfig} config object
  */
-export const getConfig: () => PackwerkConfig = () => {
+export const getConfig: () => PksConfig = () => {
   const conf = vs.workspace.getConfiguration('ruby.pks');
   let executable = conf.get('executable', 'pks check');
 
@@ -20,8 +20,8 @@ export const getConfig: () => PackwerkConfig = () => {
   };
 };
 
-export const onDidChangeConfiguration: (packwerk: Packwerk) => () => void = (
-  packwerk
+export const onDidChangeConfiguration: (pks: Pks) => () => void = (
+  pks
 ) => {
-  return () => (packwerk.config = getConfig());
+  return () => (pks.config = getConfig());
 };

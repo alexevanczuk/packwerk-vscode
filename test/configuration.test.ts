@@ -11,7 +11,7 @@ vsStub.workspace.getConfiguration = (
   section?: string,
   resource?: vsStub.Uri | null
 ): any => {
-  if (section !== 'ruby.packwerk') {
+  if (section !== 'ruby.pks') {
     return _getConfiguration(section, resource);
   }
 
@@ -33,13 +33,13 @@ const extensionConfig = pq('../src/configuration', {
 
 const { getConfig } = extensionConfig;
 
-describe('PackwerkConfig', () => {
+describe('PksConfig', () => {
   describe('getConfig', () => {
     describe('.executable', () => {
-      it('is set to "bin/packwerk check" by default', () => {
+      it('is set to "pks check" by default', () => {
         expect(getConfig()).to.have.property(
           'executable',
-          'bin/packwerk check'
+          'pks check'
         );
       });
 

@@ -1,4 +1,4 @@
-export interface PackwerkViolation {
+export interface PksViolation {
   message: string;
   file: string;
   line: number;
@@ -10,11 +10,11 @@ export interface PackwerkViolation {
   defining_pack_name: string;
 }
 
-export interface PackwerkOutput {
+export interface PksOutput {
   status: string;
-  violations: Array<PackwerkViolation>;
-  stale_violations?: Array<PackwerkViolation>;
-  strict_mode_violations?: Array<PackwerkViolation>;
+  violations: Array<PksViolation>;
+  stale_violations?: Array<PksViolation>;
+  strict_mode_violations?: Array<PksViolation>;
 }
 
 // Metadata stored on diagnostics for code actions

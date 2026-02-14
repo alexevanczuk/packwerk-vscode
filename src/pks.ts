@@ -1,13 +1,13 @@
 import {
-  PackwerkOutput,
-  PackwerkViolation,
+  PksOutput,
+  PksViolation,
   ViolationMetadata,
-} from './packwerkOutput';
+} from './pksOutput';
 import { TaskQueue, Task } from './taskQueue';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfig, PackwerkConfig } from './configuration';
+import { getConfig, PksConfig } from './configuration';
 import { parseOutput } from './outputParser';
 
 function isFileUri(uri: vscode.Uri): boolean {
@@ -18,8 +18,8 @@ function getCurrentPath(fileName: string): string {
   return vscode.workspace.rootPath || path.dirname(fileName);
 }
 
-export class Packwerk {
-  public config: PackwerkConfig;
+export class Pks {
+  public config: PksConfig;
   private diag: vscode.DiagnosticCollection;
   private taskQueue: TaskQueue;
   private output: vscode.OutputChannel;
@@ -40,7 +40,7 @@ export class Packwerk {
   }
 
   // Check if a violation has valid line/column info for display
-  private hasValidLocation(violation: PackwerkViolation): boolean {
+  private hasValidLocation(violation: PksViolation): boolean {
     return typeof violation.line === 'number' && typeof violation.column === 'number';
   }
 
@@ -55,7 +55,7 @@ export class Packwerk {
 
   // Create a diagnostic with violation metadata attached for code actions
   private createDiagnostic(
-    offence: PackwerkViolation,
+    offence: PksViolation,
     severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Error
   ): vscode.Diagnostic {
     const range = new vscode.Range(
@@ -70,7 +70,7 @@ export class Packwerk {
       this.cleanMessage(offence.message),
       severity
     );
-    diagnostic.source = 'packwerk';
+    diagnostic.source = 'pks';
 
     // Store violation metadata for code actions
     const metadata: ViolationMetadata = {
@@ -80,7 +80,7 @@ export class Packwerk {
       referencing_pack_name: offence.referencing_pack_name,
       defining_pack_name: offence.defining_pack_name,
     };
-    (diagnostic as any)._packwerk = metadata;
+    (diagnostic as any)._pks = metadata;
 
     return diagnostic;
   }
@@ -109,23 +109,23 @@ export class Packwerk {
     let onDidExec = (error: Error, stdout: string, stderr: string) => {
       this.log(`executeHighlights: Command finished for ${relativeFileName}`);
       this.reportError(error, stderr);
-      let packwerk = this.parse(stdout);
-      if (packwerk === undefined || packwerk === null) {
+      let pksOutput = this.parse(stdout);
+      if (pksOutput === undefined || pksOutput === null) {
         this.log('executeHighlights: Parse returned null/undefined, aborting');
         onResults([], []);
         return;
       }
 
       const allViolations = [
-        ...(packwerk.violations || []),
-        ...(packwerk.stale_violations || []),
-        ...(packwerk.strict_mode_violations || []),
+        ...(pksOutput.violations || []),
+        ...(pksOutput.stale_violations || []),
+        ...(pksOutput.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
       const ranges: vscode.Range[] = [];
       const diagnostics: vscode.Diagnostic[] = [];
 
-      allViolations.forEach((offence: PackwerkViolation) => {
+      allViolations.forEach((offence: PksViolation) => {
         // Get the constant name without leading ::
         const displayName = offence.constant_name.replace(/^::/, '');
         const range = new vscode.Range(
@@ -142,7 +142,7 @@ export class Packwerk {
           this.cleanMessage(offence.message),
           vscode.DiagnosticSeverity.Information
         );
-        diagnostic.source = 'packwerk';
+        diagnostic.source = 'pks';
 
         // Attach violation metadata for code actions
         const metadata: ViolationMetadata = {
@@ -152,7 +152,7 @@ export class Packwerk {
           referencing_pack_name: offence.referencing_pack_name,
           defining_pack_name: offence.defining_pack_name,
         };
-        (diagnostic as any)._packwerk = metadata;
+        (diagnostic as any)._pks = metadata;
 
         diagnostics.push(diagnostic);
       });
@@ -195,7 +195,7 @@ export class Packwerk {
 
     const cwd = currentPath;
     // Sentinel URI used for task queue cancellation of whole-workspace runs
-    const allUri = vscode.Uri.parse('packwerk:all');
+    const allUri = vscode.Uri.parse('pks:all');
 
     this.log(`executeAll: Starting in cwd=${cwd}`);
 
@@ -209,26 +209,26 @@ export class Packwerk {
       }
 
       this.reportError(error, stderr);
-      let packwerk = this.parse(stdout);
-      if (packwerk === undefined || packwerk === null) {
+      let pksOutput = this.parse(stdout);
+      if (pksOutput === undefined || pksOutput === null) {
         this.log('executeAll: Parse returned null/undefined, aborting');
         return;
       }
 
       // Combine all violation types and filter to those with valid locations
       const allViolations = [
-        ...(packwerk.violations || []),
-        ...(packwerk.stale_violations || []),
-        ...(packwerk.strict_mode_violations || []),
+        ...(pksOutput.violations || []),
+        ...(pksOutput.stale_violations || []),
+        ...(pksOutput.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
-      this.log(`executeAll: Parsed ${allViolations.length} displayable violations (${packwerk.violations?.length || 0} new, ${packwerk.stale_violations?.length || 0} stale, ${packwerk.strict_mode_violations?.length || 0} strict)`);
+      this.log(`executeAll: Parsed ${allViolations.length} displayable violations (${pksOutput.violations?.length || 0} new, ${pksOutput.stale_violations?.length || 0} stale, ${pksOutput.strict_mode_violations?.length || 0} strict)`);
 
       this.diag.clear();
 
       // Group violations by file
       const byFile = new Map<string, vscode.Diagnostic[]>();
-      allViolations.forEach((offence: PackwerkViolation) => {
+      allViolations.forEach((offence: PksViolation) => {
         const diagnostic = this.createDiagnostic(offence);
 
         if (!byFile.has(offence.file)) {
@@ -291,22 +291,22 @@ export class Packwerk {
     let onDidExec = (error: Error, stdout: string, stderr: string) => {
       this.log(`execute: Command finished for ${relativeFileName}`);
       this.reportError(error, stderr);
-      let packwerk = this.parse(stdout);
-      if (packwerk === undefined || packwerk === null) {
+      let pksOutput = this.parse(stdout);
+      if (pksOutput === undefined || pksOutput === null) {
         this.log('execute: Parse returned null/undefined, aborting');
         return;
       }
 
       // Combine all violation types and filter to those with valid locations
       const allViolations = [
-        ...(packwerk.violations || []),
-        ...(packwerk.stale_violations || []),
-        ...(packwerk.strict_mode_violations || []),
+        ...(pksOutput.violations || []),
+        ...(pksOutput.stale_violations || []),
+        ...(pksOutput.strict_mode_violations || []),
       ].filter(v => this.hasValidLocation(v));
 
       this.diag.delete(uri);
 
-      const diagnostics = allViolations.map((offence: PackwerkViolation) =>
+      const diagnostics = allViolations.map((offence: PksViolation) =>
         this.createDiagnostic(offence)
       );
       this.log(`execute: Setting ${diagnostics.length} diagnostics for ${relativeFileName}`);
@@ -314,7 +314,7 @@ export class Packwerk {
     };
 
     let task = new Task(uri, (token) => {
-      let process = this.executePackwerkCheck(
+      let process = this.executePksCheck(
         relativeFileName,
         document.getText(),
         { cwd: currentPath },
@@ -352,14 +352,14 @@ export class Packwerk {
     }
   }
 
-  private executePackwerkCheck(
+  private executePksCheck(
     fileName: string,
     fileContents: string,
     options: cp.ExecOptions,
     cb: (err: Error, stdout: string, stderr: string) => void
   ): cp.ChildProcess {
     let command = `${this.config.executable} --json ${fileName}`;
-    this.log(`executePackwerkCheck: Running command: ${command}`);
+    this.log(`executePksCheck: Running command: ${command}`);
 
     let child = cp.exec(command, { ...options, maxBuffer: 50 * 1024 * 1024 }, cb);
     child.stdin.write(fileContents);
@@ -367,8 +367,8 @@ export class Packwerk {
     return child;
   }
 
-  private parse(output: string): PackwerkOutput | null {
-    let packwerk: PackwerkOutput;
+  private parse(output: string): PksOutput | null {
+    let pksOutput: PksOutput;
     this.log(`parse: output.length=${output?.length || 0}`);
 
     if (output.length < 1) {
@@ -384,8 +384,8 @@ export class Packwerk {
 
     try {
       this.log(`parse: Attempting JSON parse, first 200 chars: ${output.substring(0, 200)}`);
-      packwerk = parseOutput(output);
-      this.log(`parse: JSON parse succeeded, status=${packwerk?.status}, violations count=${packwerk?.violations?.length}`);
+      pksOutput = parseOutput(output);
+      this.log(`parse: JSON parse succeeded, status=${pksOutput?.status}, violations count=${pksOutput?.violations?.length}`);
     } catch (e) {
       this.log(`parse: JSON parse failed with error: ${e}`);
       if (e instanceof SyntaxError) {
@@ -399,7 +399,7 @@ export class Packwerk {
       }
     }
 
-    return packwerk;
+    return pksOutput;
   }
 
   private reportError(error: Error, stderr: string): boolean {
