@@ -49,7 +49,14 @@ jobs:
 
       - name: Publish to Open VSX
         if: steps.tag_exists.outputs.exists == 'false'
-        run: npx ovsx publish pks-vscode-${{ steps.package_version.outputs.version }}.vsix -p ${{ secrets.OPEN_VSX_REGISRY_TOKEN }}
+        run: |
+          npx ovsx publish pks-vscode-${{ steps.package_version.outputs.version }}.vsix -p ${{ secrets.OPEN_VSX_REGISRY_TOKEN }} || {
+            if [[ $? -eq 1 ]]; then
+              echo "::warning::Version may already be published to Open VSX"
+            else
+              exit 1
+            fi
+          }
 
       - name: Create GitHub Release
         if: steps.tag_exists.outputs.exists == 'false'
