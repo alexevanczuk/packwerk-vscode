@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Compile
+        run: yarn run vscode:prepublish
+
+      - name: Run tests
+        run: xvfb-run -a yarn test
+
+      - name: Get package version
+        id: package_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: tag_exists
+        run: |
+          if git rev-parse "v${{ steps.package_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package extension
+        if: steps.tag_exists.outputs.exists == 'false'
+        run: npx vsce package --no-yarn
+
+      - name: Publish to Open VSX
+        if: steps.tag_exists.outputs.exists == 'false'
+        run: npx ovsx publish pks-vscode-${{ steps.package_version.outputs.version }}.vsix -p ${{ secrets.OPEN_VSX_REGISRY_TOKEN }}
+
+      - name: Create GitHub Release
+        if: steps.tag_exists.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.package_version.outputs.version }}
+          name: v${{ steps.package_version.outputs.version }}
+          files: pks-vscode-${{ steps.package_version.outputs.version }}.vsix
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
