@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { ViolationMetadata } from './packwerkOutput';
+import { ViolationMetadata } from './pksOutput';
 
-export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
+export class PksCodeActionProvider implements vscode.CodeActionProvider {
   public provideCodeActions(
     document: vscode.TextDocument,
     range: vscode.Range | vscode.Selection,
@@ -11,7 +11,7 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
 
     for (const diagnostic of context.diagnostics) {
-      if (!this.isPackwerkDiagnostic(diagnostic)) {
+      if (!this.isPksDiagnostic(diagnostic)) {
         continue;
       }
 
@@ -60,12 +60,12 @@ export class PackwerkCodeActionProvider implements vscode.CodeActionProvider {
     return actions;
   }
 
-  private isPackwerkDiagnostic(diagnostic: vscode.Diagnostic): boolean {
-    return diagnostic.source === 'packwerk';
+  private isPksDiagnostic(diagnostic: vscode.Diagnostic): boolean {
+    return diagnostic.source === 'pks';
   }
 
   private getViolationMetadata(diagnostic: vscode.Diagnostic): ViolationMetadata | undefined {
-    return (diagnostic as any)._packwerk as ViolationMetadata | undefined;
+    return (diagnostic as any)._pks as ViolationMetadata | undefined;
   }
 
   // Remove "packs/" prefix for display

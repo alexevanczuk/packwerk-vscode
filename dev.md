@@ -2,7 +2,7 @@ This is a collection of some relatively unorganized notes for people interested 
 
 ## Future Features
 - automatically update deprecated references
-  - possibly allow for updating a single file rather than a pack. This would require changes to packwerk to support update-deprecations working correctly on a single file.
+  - possibly allow for updating a single file rather than a pack. This would require changes to pks to support update-deprecations working correctly on a single file.
 - click to open public API where constant lives
 
 ## Future work items

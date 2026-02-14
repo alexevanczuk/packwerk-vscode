@@ -1,16 +1,16 @@
 import { expect } from 'chai';
 import * as vscode from 'vscode';
-import { PackwerkCodeActionProvider } from '../src/codeActionProvider';
+import { PksCodeActionProvider } from '../src/codeActionProvider';
 
-describe('PackwerkCodeActionProvider', () => {
-  let provider: PackwerkCodeActionProvider;
+describe('PksCodeActionProvider', () => {
+  let provider: PksCodeActionProvider;
 
   beforeEach(() => {
-    provider = new PackwerkCodeActionProvider();
+    provider = new PksCodeActionProvider();
   });
 
   describe('provideCodeActions', () => {
-    it('should only provide pks update action for packwerk diagnostics', () => {
+    it('should only provide pks update action for pks diagnostics', () => {
       // Create a mock document
       const document = {
         uri: vscode.Uri.file('/test/file.rb'),
@@ -22,15 +22,15 @@ describe('PackwerkCodeActionProvider', () => {
         isClosed: false,
       } as vscode.TextDocument;
 
-      // Create packwerk diagnostic
-      const packwerkDiagnostic = new vscode.Diagnostic(
+      // Create pks diagnostic
+      const pksDiagnostic = new vscode.Diagnostic(
         new vscode.Range(0, 0, 0, 10),
         'Dependency violation: ::SomeConstant belongs to \'packs/foo\', but \'packs/bar\' does not specify a dependency',
         vscode.DiagnosticSeverity.Error
       );
-      packwerkDiagnostic.source = 'packwerk';
+      pksDiagnostic.source = 'pks';
 
-      // Create non-packwerk diagnostic (e.g., RuboCop or TypeScript)
+      // Create non-pks diagnostic (e.g., RuboCop or TypeScript)
       const otherDiagnostic = new vscode.Diagnostic(
         new vscode.Range(1, 0, 1, 10),
         'Undefined variable: foo',
@@ -40,7 +40,7 @@ describe('PackwerkCodeActionProvider', () => {
 
       const range = new vscode.Range(0, 0, 0, 10);
       const context: vscode.CodeActionContext = {
-        diagnostics: [packwerkDiagnostic, otherDiagnostic]
+        diagnostics: [pksDiagnostic, otherDiagnostic]
       };
 
       const actions = provider.provideCodeActions(
@@ -55,12 +55,12 @@ describe('PackwerkCodeActionProvider', () => {
         action => action.title === 'Run pks update'
       ) || [];
 
-      // Should only have ONE "Run pks update" action (from the packwerk diagnostic)
+      // Should only have ONE "Run pks update" action (from the pks diagnostic)
       expect(pksUpdateActions).to.have.lengthOf(1);
-      expect(pksUpdateActions[0].diagnostics).to.deep.equal([packwerkDiagnostic]);
+      expect(pksUpdateActions[0].diagnostics).to.deep.equal([pksDiagnostic]);
     });
 
-    it('should provide privacy violation action only for packwerk privacy diagnostics', () => {
+    it('should provide privacy violation action only for pks privacy diagnostics', () => {
       const document = {
         uri: vscode.Uri.file('/test/file.rb'),
         fileName: '/test/file.rb',
@@ -76,7 +76,7 @@ describe('PackwerkCodeActionProvider', () => {
         'Privacy violation: `::Foo::Bar` is private',
         vscode.DiagnosticSeverity.Error
       );
-      privacyDiagnostic.source = 'packwerk';
+      privacyDiagnostic.source = 'pks';
 
       const otherDiagnostic = new vscode.Diagnostic(
         new vscode.Range(1, 0, 1, 10),
@@ -114,7 +114,7 @@ describe('PackwerkCodeActionProvider', () => {
       expect(pksUpdateActions).to.have.lengthOf(1);
     });
 
-    it('should not provide any actions for non-packwerk diagnostics', () => {
+    it('should not provide any actions for non-pks diagnostics', () => {
       const document = {
         uri: vscode.Uri.file('/test/file.rb'),
         fileName: '/test/file.rb',
@@ -125,7 +125,7 @@ describe('PackwerkCodeActionProvider', () => {
         isClosed: false,
       } as vscode.TextDocument;
 
-      // Only non-packwerk diagnostics
+      // Only non-pks diagnostics
       const diagnostic1 = new vscode.Diagnostic(
         new vscode.Range(0, 0, 0, 10),
         'Syntax error',

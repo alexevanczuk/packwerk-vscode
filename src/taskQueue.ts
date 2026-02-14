@@ -70,7 +70,7 @@ export class Task {
 
 /**
  * Provides single-threaded task queue which runs single asynchronous
- * Task at a time. This restricts concurrent execution of packwerk
+ * Task at a time. This restricts concurrent execution of pks
  * processes to prevent from running out machine resource.
  */
 export class TaskQueue {
@@ -128,7 +128,7 @@ export class TaskQueue {
         this.log(`TaskQueue: Task completed for ${task.uri}`);
       } catch (e) {
         this.log(`TaskQueue: Task error for ${task.uri}: ${e.message}`);
-        console.error('Error while running packwerk: ', e.message, e.stack);
+        console.error('Error while running pks: ', e.message, e.stack);
       }
       this.tasks.shift();
     }
