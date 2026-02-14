@@ -10,7 +10,7 @@
   "icon": "images/package.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexevanczuk/packwerk-vscode.git"
+    "url": "https://github.com/alexevanczuk/pks-vscode.git"
   },
   "categories": [
     "Programming Languages",
