@@ -16,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install dependencies
@@ -43,7 +43,7 @@ jobs:
 
       - name: Package extension
         if: steps.tag_exists.outputs.exists == 'false'
-        run: npx vsce package --no-yarn
+        run: npx @vscode/vsce package --no-yarn
 
       - name: Publish to Open VSX
         if: steps.tag_exists.outputs.exists == 'false'
