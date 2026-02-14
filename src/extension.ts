@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { Packwerk } from './packwerk';
+import { Pks } from './pks';
 import { onDidChangeConfiguration } from './configuration';
-import { PackwerkCodeActionProvider } from './codeActionProvider';
+import { PksCodeActionProvider } from './codeActionProvider';
 import { PackageYmlLinkProvider } from './packageYmlLinkProvider';
 import { PackageTodoLinkProvider } from './packageTodoLinkProvider';
 import { ConstantDefinitionCache } from './constantDefinitionCache';
@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel('Pks');
   context.subscriptions.push(outputChannel);
 
-  const packwerk = new Packwerk(diag, outputChannel);
+  const pks = new Pks(diag, outputChannel);
   const constantCache = new ConstantDefinitionCache(outputChannel);
 
   // Load constant definitions on activation
@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('ruby.pks.all', () => {
       outputChannel.show(true);
-      packwerk.executeAll();
+      pks.executeAll();
     })
   );
 
@@ -82,7 +82,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // Register code action provider
-  const codeActionProvider = new PackwerkCodeActionProvider();
+  const codeActionProvider = new PksCodeActionProvider();
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(
       ['ruby', 'gemfile'],
@@ -137,7 +137,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Helper to apply highlight decorations and diagnostics to an editor
   const applyHighlightsToEditor = (editor: vscode.TextEditor) => {
-    packwerk.executeHighlights(editor.document, (ranges, diagnostics) => {
+    pks.executeHighlights(editor.document, (ranges, diagnostics) => {
       editor.setDecorations(highlightDecorationType, ranges);
       highlightDiag.set(editor.document.uri, diagnostics);
     });
@@ -260,8 +260,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
             vscode.window.showInformationMessage(`Added # pack_public: true to ${constantName}`);
 
-            // Re-run packwerk check to update diagnostics
-            packwerk.executeAll();
+            // Re-run pks check to update diagnostics
+            pks.executeAll();
           } catch (err) {
             vscode.window.showErrorMessage(`Failed to open file ${definitionFile}: ${err}`);
           }
@@ -288,8 +288,8 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
           }
           vscode.window.showInformationMessage(`Added dependency from ${sourcePack} to ${targetPack}`);
-          // Re-run packwerk check to update diagnostics
-          packwerk.executeAll();
+          // Re-run pks check to update diagnostics
+          pks.executeAll();
         });
       }
     )
@@ -313,7 +313,7 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
           }
           vscode.window.showInformationMessage(`Added ${constantName} to todo for ${file}`);
-          packwerk.executeAll();
+          pks.executeAll();
         });
       }
     )
@@ -337,7 +337,7 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
           }
           vscode.window.showInformationMessage(`Added ${constantName} to todo for pack`);
-          packwerk.executeAll();
+          pks.executeAll();
         });
       }
     )
@@ -361,7 +361,7 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
           }
           vscode.window.showInformationMessage(`Added all ${definingPack} violations to todo`);
-          packwerk.executeAll();
+          pks.executeAll();
         });
       }
     )
@@ -385,7 +385,7 @@ export function activate(context: vscode.ExtensionContext): void {
             return;
           }
           vscode.window.showInformationMessage('Updated all package_todo.yml files');
-          packwerk.executeAll();
+          pks.executeAll();
         });
       }
     )
@@ -393,14 +393,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const ws = vscode.workspace;
 
-  ws.onDidChangeConfiguration(onDidChangeConfiguration(packwerk));
+  ws.onDidChangeConfiguration(onDidChangeConfiguration(pks));
 
   // Run pks check for all files on activation
-  packwerk.executeAll();
+  pks.executeAll();
 
   ws.onDidSaveTextDocument((e: vscode.TextDocument) => {
-    if (packwerk.isOnSave) {
-      packwerk.execute(e);
+    if (pks.isOnSave) {
+      pks.execute(e);
     }
   });
 }
