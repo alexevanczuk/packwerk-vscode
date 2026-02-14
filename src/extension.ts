@@ -42,7 +42,6 @@ export function activate(context: vscode.ExtensionContext): void {
   // Register command to run pks check on all files
   context.subscriptions.push(
     vscode.commands.registerCommand('ruby.pks.all', () => {
-      outputChannel.show(true);
       pks.executeAll();
     })
   );
