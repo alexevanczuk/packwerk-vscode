@@ -1,10 +1,13 @@
 import {
   PksOutput,
+  PksValidateOutput,
   PksViolation,
+  CycleDiagnosticMetadata,
   ViolationMetadata,
 } from './pksOutput';
 import { TaskQueue, Task } from './taskQueue';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfig, PksConfig } from './configuration';
@@ -21,17 +24,29 @@ function getCurrentPath(fileName: string): string {
 export class Pks {
   public config: PksConfig;
   private diag: vscode.DiagnosticCollection;
+  private validateDiag: vscode.DiagnosticCollection;
   private taskQueue: TaskQueue;
   private output: vscode.OutputChannel;
 
   constructor(
     diagnostics: vscode.DiagnosticCollection,
+    validateDiagnostics: vscode.DiagnosticCollection,
     outputChannel: vscode.OutputChannel,
   ) {
     this.diag = diagnostics;
+    this.validateDiag = validateDiagnostics;
     this.output = outputChannel;
     this.config = getConfig();
     this.taskQueue = new TaskQueue((msg) => this.log(msg));
+  }
+
+  // Get the base executable (e.g., "pks") by stripping trailing " check" from config
+  public getBaseExecutable(): string {
+    const exe = this.config.executable;
+    if (exe.endsWith(' check')) {
+      return exe.slice(0, -6);
+    }
+    return exe;
   }
 
   private log(message: string): void {
@@ -263,6 +278,164 @@ export class Pks {
           }
         } catch (e) {
           this.log(`executeAll: Exception in callback: ${e}`);
+        } finally {
+          token.finished();
+        }
+      });
+      return () => process.kill();
+    });
+
+    this.taskQueue.enqueue(task);
+
+    // Also run validate after check
+    this.executeValidate();
+  }
+
+  public executeValidate(onComplete?: () => void): void {
+    let currentPath = vscode.workspace.rootPath;
+    if (!currentPath) {
+      this.log('executeValidate: No workspace root path, aborting');
+      return;
+    }
+
+    const cwd = currentPath;
+    const validateUri = vscode.Uri.parse('pks:validate');
+    const baseExe = this.getBaseExecutable();
+
+    this.log(`executeValidate: Starting in cwd=${cwd}`);
+
+    let onDidExec = (error: Error, stdout: string, stderr: string) => {
+      this.log(`executeValidate: Command finished. stdout.length=${stdout?.length || 0}`);
+      if (stderr && stderr.length > 0) {
+        this.log(`executeValidate: stderr=${stderr.substring(0, 500)}`);
+      }
+
+      this.validateDiag.clear();
+
+      if (!stdout || stdout.length < 1) {
+        this.log('executeValidate: Empty output');
+        return;
+      }
+
+      let validateOutput: PksValidateOutput;
+      try {
+        validateOutput = JSON.parse(stdout);
+      } catch (e) {
+        this.log(`executeValidate: JSON parse failed: ${e}`);
+        return;
+      }
+
+      if (!validateOutput.validation_errors || validateOutput.validation_errors.length === 0) {
+        this.log('executeValidate: No validation errors');
+        return;
+      }
+
+      const byFile = new Map<string, vscode.Diagnostic[]>();
+
+      for (const validationError of validateOutput.validation_errors) {
+        if (validationError.error_type !== 'cycle' || !validationError.cycle_edges) {
+          continue;
+        }
+
+        for (const edge of validationError.cycle_edges) {
+          const filePath = path.join(cwd, edge.file);
+
+          // Read the package.yml to find the dependency line
+          let fileContent: string;
+          try {
+            fileContent = fs.readFileSync(filePath, 'utf-8');
+          } catch (e) {
+            this.log(`executeValidate: Could not read ${filePath}: ${e}`);
+            continue;
+          }
+
+          const lines = fileContent.split('\n');
+          let inDependencies = false;
+          let foundLine = -1;
+          let startChar = 0;
+          let endChar = 0;
+
+          for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+            const line = lines[lineNum];
+
+            if (/^dependencies:/.test(line)) {
+              inDependencies = true;
+              continue;
+            }
+
+            if (inDependencies && /^[^\s-]/.test(line)) {
+              inDependencies = false;
+            }
+
+            if (inDependencies) {
+              // Match dependency lines like "  - packs/foo" or "  - 'packs/foo'"
+              const match = line.match(/^(\s*-\s*)["']?([^"'\s]+)["']?\s*$/);
+              if (match && match[2] === edge.to_pack) {
+                foundLine = lineNum;
+                startChar = match[1].length;
+                endChar = startChar + match[2].length;
+                break;
+              }
+            }
+          }
+
+          if (foundLine === -1) {
+            this.log(`executeValidate: Could not find dependency line for ${edge.to_pack} in ${edge.file}`);
+            continue;
+          }
+
+          const range = new vscode.Range(
+            new vscode.Position(foundLine, startChar),
+            new vscode.Position(foundLine, endChar)
+          );
+
+          const diagnostic = new vscode.Diagnostic(
+            range,
+            `Dependency cycle: ${edge.from_pack} -> ${edge.to_pack}`,
+            vscode.DiagnosticSeverity.Error
+          );
+          diagnostic.source = 'pks-validate';
+
+          // Attach cycle metadata for code actions
+          const cycleMeta: CycleDiagnosticMetadata = {
+            from_pack: edge.from_pack,
+            to_pack: edge.to_pack,
+          };
+          (diagnostic as any)._pksCycle = cycleMeta;
+
+          const fileUri = vscode.Uri.file(filePath).toString();
+          if (!byFile.has(fileUri)) {
+            byFile.set(fileUri, []);
+          }
+          byFile.get(fileUri)!.push(diagnostic);
+        }
+      }
+
+      let entries: [vscode.Uri, vscode.Diagnostic[]][] = [];
+      byFile.forEach((diagnostics, fileUriStr) => {
+        entries.push([vscode.Uri.parse(fileUriStr), diagnostics]);
+      });
+
+      this.log(`executeValidate: Setting diagnostics for ${entries.length} files`);
+      this.validateDiag.set(entries);
+      this.log('executeValidate: Done');
+    };
+
+    let task = new Task(validateUri, (token) => {
+      let command = `${baseExe} validate --json`;
+      this.log(`executeValidate: Running command: ${command}`);
+      let process = cp.exec(command, { cwd, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
+        try {
+          if (token.isCanceled) {
+            this.log('executeValidate: Task was canceled');
+            return;
+          }
+          onDidExec(error, stdout, stderr);
+          if (onComplete) {
+            onComplete();
+          }
+        } catch (e) {
+          this.log(`executeValidate: Exception in callback: ${e}`);
         } finally {
           token.finished();
         }

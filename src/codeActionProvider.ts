@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ViolationMetadata } from './pksOutput';
+import { ViolationMetadata, CycleDiagnosticMetadata } from './pksOutput';
 
 export class PksCodeActionProvider implements vscode.CodeActionProvider {
   public provideCodeActions(
@@ -202,5 +202,48 @@ export class PksCodeActionProvider implements vscode.CodeActionProvider {
     action.diagnostics = [diagnostic];
 
     return action;
+  }
+}
+
+export class PksCycleCodeActionProvider implements vscode.CodeActionProvider {
+  public provideCodeActions(
+    document: vscode.TextDocument,
+    range: vscode.Range | vscode.Selection,
+    context: vscode.CodeActionContext,
+    token: vscode.CancellationToken
+  ): vscode.CodeAction[] | undefined {
+    const actions: vscode.CodeAction[] = [];
+
+    for (const diagnostic of context.diagnostics) {
+      if (diagnostic.source !== 'pks-validate') {
+        continue;
+      }
+
+      const cycleMeta = (diagnostic as any)._pksCycle as CycleDiagnosticMetadata | undefined;
+      if (!cycleMeta) {
+        continue;
+      }
+
+      const shortFrom = cycleMeta.from_pack.replace(/^packs\//, '');
+      const shortTo = cycleMeta.to_pack.replace(/^packs\//, '');
+
+      const action = new vscode.CodeAction(
+        `Remove: ${shortFrom} -> ${shortTo}`,
+        vscode.CodeActionKind.QuickFix
+      );
+
+      action.command = {
+        title: 'Remove dependency',
+        command: 'ruby.pks.removeDependency',
+        arguments: [cycleMeta.from_pack, cycleMeta.to_pack]
+      };
+
+      action.diagnostics = [diagnostic];
+      action.isPreferred = true;
+
+      actions.push(action);
+    }
+
+    return actions;
   }
 }
