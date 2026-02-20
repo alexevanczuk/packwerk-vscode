@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Pks } from './pks';
 import { onDidChangeConfiguration } from './configuration';
-import { PksCodeActionProvider } from './codeActionProvider';
+import { PksCodeActionProvider, PksCycleCodeActionProvider } from './codeActionProvider';
 import { PackageYmlLinkProvider } from './packageYmlLinkProvider';
 import { PackageTodoLinkProvider } from './packageTodoLinkProvider';
 import { ConstantDefinitionCache } from './constantDefinitionCache';
@@ -14,6 +14,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const diag = vscode.languages.createDiagnosticCollection('ruby');
   context.subscriptions.push(diag);
+
+  // Diagnostic collection for validate errors (cycle detection in package.yml)
+  const validateDiag = vscode.languages.createDiagnosticCollection('pks-validate');
+  context.subscriptions.push(validateDiag);
 
   // Diagnostic collection for highlight mode (for Error Lens messages)
   const highlightDiag = vscode.languages.createDiagnosticCollection('ruby-highlights');
@@ -31,7 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel('Pks');
   context.subscriptions.push(outputChannel);
 
-  const pks = new Pks(diag, outputChannel);
+  const pks = new Pks(diag, validateDiag, outputChannel);
   const constantCache = new ConstantDefinitionCache(outputChannel);
 
   // Load constant definitions on activation
@@ -86,6 +90,22 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerCodeActionsProvider(
       ['ruby', 'gemfile'],
       codeActionProvider,
+      {
+        providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
+      }
+    )
+  );
+
+  // Register cycle code action provider for package.yml files
+  const cycleCodeActionProvider = new PksCycleCodeActionProvider();
+  const packageYmlCodeActionSelector: vscode.DocumentSelector = {
+    scheme: 'file',
+    pattern: '**/package.yml'
+  };
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      packageYmlCodeActionSelector,
+      cycleCodeActionProvider,
       {
         providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
       }
@@ -294,6 +314,31 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
+  // Register command to remove dependency
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'ruby.pks.removeDependency',
+      async (fromPack: string, toPack: string) => {
+        const cwd = vscode.workspace.rootPath;
+        if (!cwd) {
+          vscode.window.showErrorMessage('No workspace folder open');
+          return;
+        }
+
+        const baseExe = pks.getBaseExecutable();
+        const command = `${baseExe} remove-dependency ${fromPack} ${toPack}`;
+        exec(command, { cwd }, (error: Error | null, _stdout: string, stderr: string) => {
+          if (error) {
+            vscode.window.showErrorMessage(`Failed to remove dependency: ${stderr || error.message}`);
+            return;
+          }
+          vscode.window.showInformationMessage(`Removed dependency from ${fromPack} to ${toPack}`);
+          pks.executeAll();
+        });
+      }
+    )
+  );
+
   // Register command: todo: this file -> CONSTANT
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -400,6 +445,10 @@ export function activate(context: vscode.ExtensionContext): void {
   ws.onDidSaveTextDocument((e: vscode.TextDocument) => {
     if (pks.isOnSave) {
       pks.execute(e);
+    }
+    // Re-run validate when package.yml files are saved
+    if (e.fileName.endsWith('package.yml')) {
+      pks.executeValidate();
     }
   });
 }

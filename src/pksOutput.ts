@@ -25,3 +25,28 @@ export interface ViolationMetadata {
   referencing_pack_name: string;
   defining_pack_name: string;
 }
+
+// Types for pks validate --json output
+export interface CycleEdge {
+  from_pack: string;
+  to_pack: string;
+  file: string;
+}
+
+export interface ValidationError {
+  error_type: string;
+  message: string;
+  cycle_edges?: CycleEdge[];
+  file?: string;
+}
+
+export interface PksValidateOutput {
+  status: string;
+  validation_errors: ValidationError[];
+}
+
+// Metadata stored on cycle diagnostics for code actions
+export interface CycleDiagnosticMetadata {
+  from_pack: string;
+  to_pack: string;
+}
